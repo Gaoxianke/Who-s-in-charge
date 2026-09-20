@@ -212,7 +212,7 @@ export default function SignIn() {
       setError('请先阅读并同意用户协议与隐私政策');
       return;
     }
-    if (!email.trim() || !password.trim()) {
+    if (!username.trim() || !password.trim()) {
       setError('请输入账号和密码');
       return;
     }
@@ -273,7 +273,7 @@ export default function SignIn() {
     if (!trimmed) { setFpResult({ ok: false, text: '请输入您的账号' }); return; }
     setFpLoading(true);
     setFpResult(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed.includes('@') ? trimmed : trimmed + '@qingyunlu.game');
     setFpLoading(false);
     if (error) {
       setFpResult({ ok: false, text: `发送失败：${error.message.slice(0, 50)}` });
