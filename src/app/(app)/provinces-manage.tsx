@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
-import { formatMoney } from '@/types/game';
+import { formatMoney, formatFund } from '@/types/game';
 
 // 省级数据（参考2023年各省GDP/税收/民生现实数据，游戏单位：亿元）
 interface Province {
@@ -231,7 +231,7 @@ export default function ProvincesManageScreen() {
                   <View style={{ backgroundColor: '#1D3B5E', padding: 10 }}>
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>🚁 走访 · {item.name}</Text>
                     <Text style={{ color: 'rgba(180,210,255,0.8)', fontSize: 10, marginTop: 2 }}>
-                      当前经费：¥{formatMoney(save.fundBalance)}
+                      当前经费：¥{formatFund(save.fundBalance)}
                     </Text>
                   </View>
                   {VISIT_TASKS.map(task => {
@@ -246,7 +246,7 @@ export default function ProvincesManageScreen() {
                             <Text style={{ fontSize: 10, color: '#888', marginTop: 2 }}>{task.desc}</Text>
                             <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
                               <Text style={{ fontSize: 9, color: '#7B5E2A', backgroundColor: '#FFF9E6', paddingHorizontal: 5, paddingVertical: 1 }}>
-                                费用 ¥{formatMoney(task.cost)}
+                                费用 ¥{formatFund(task.cost)}
                               </Text>
                               <Text style={{ fontSize: 9, color: '#2a7a3b', backgroundColor: '#F0FAF0', paddingHorizontal: 5, paddingVertical: 1 }}>
                                 +{task.meritReward}政绩

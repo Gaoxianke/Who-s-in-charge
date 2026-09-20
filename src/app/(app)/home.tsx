@@ -453,7 +453,7 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.headerSub, fontSize: 9, letterSpacing: 1 }}>国家统计局 · 年度数据</Text>
               <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 12, marginTop: 1 }}>
-                全国GDP：¥{formatMoney(estimateNationalGdp(save.rankLevel, save.cityGdp))} 元
+                全国GDP：¥{estimateNationalGdp(save.rankLevel, save.cityGdp).toLocaleString()} 亿元
               </Text>
             </View>
             <View style={{ borderWidth: 1, borderColor: theme.accent, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -514,7 +514,7 @@ export default function HomeScreen() {
                   // 偶数格（浅背景）
                   { label: '政绩', value: Math.floor(save.meritPoints).toString(), lightColor: theme.valueText,         darkColor: '#FFFFFF' },
                   // 奇数格（深背景）
-                  { label: '财政余额', value: formatMoney(save.fundBalance),         lightColor: theme.valueText,         darkColor: '#FFFFFF' },
+                  { label: '财政余额', value: formatFund(save.fundBalance),         lightColor: theme.valueText,         darkColor: '#FFFFFF' },
                   // 偶数格
                   { label: '民心', value: save.moralValue.toString(),               lightColor: moralLight,              darkColor: moralDark },
                   // 奇数格

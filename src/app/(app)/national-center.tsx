@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
-import { formatMoney } from '@/types/game';
+import { formatMoney, formatFund } from '@/types/game';
 
 // 国家中枢权力行动
 interface CentralAction {
@@ -156,7 +156,7 @@ export default function NationalCenterScreen() {
       return;
     }
     if (action.cost > 0 && save.fundBalance < action.cost) {
-      setResult(`⚠️ 专项经费不足，需 ¥${formatMoney(action.cost)}万`);
+      setResult(`⚠️ 专项经费不足，需 ¥${formatFund(action.cost)}`);
       setTimeout(() => setResult(''), 2500);
       return;
     }
@@ -216,7 +216,7 @@ export default function NationalCenterScreen() {
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
         <View style={{ flex: 1.5, alignItems: 'center' }}>
           <Text style={{ color: 'rgba(200,220,255,0.5)', fontSize: 8 }}>专项经费</Text>
-          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 11 }}>¥{formatMoney(save.fundBalance)}万</Text>
+          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 11 }}>¥{formatFund(save.fundBalance)}</Text>
         </View>
       </View>
 
@@ -272,7 +272,7 @@ export default function NationalCenterScreen() {
                     ))}
                     {action.cost > 0 && (
                       <View style={{ backgroundColor: 'rgba(255,215,0,0.1)', paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ fontSize: 9, color: '#FFD700' }}>¥{formatMoney(action.cost)}万</Text>
+                        <Text style={{ fontSize: 9, color: '#FFD700' }}>¥{formatFund(action.cost)}</Text>
                       </View>
                     )}
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 6, paddingVertical: 2 }}>

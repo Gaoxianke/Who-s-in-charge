@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
-import { formatMoney } from '@/types/game';
+import { formatMoney, formatFund } from '@/types/game';
 
 interface ResearchDir {
   id: string;
@@ -121,7 +121,7 @@ export default function SciTechScreen() {
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9 }}>总投入</Text>
-          <Text style={{ color: '#5BD8FF', fontWeight: '700', fontSize: 13 }}>¥{formatMoney(totalInvest)}万</Text>
+          <Text style={{ color: '#5BD8FF', fontWeight: '700', fontSize: 13 }}>¥{formatFund(totalInvest)}</Text>
         </View>
       </View>
 
@@ -129,7 +129,7 @@ export default function SciTechScreen() {
       <View style={{ flexDirection: 'row', backgroundColor: '#1D3B5E', paddingVertical: 10, paddingHorizontal: 14, gap: 10 }}>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={{ color: '#a0b4cc', fontSize: 9 }}>专项经费</Text>
-          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>¥{formatMoney(save.fundBalance)}万</Text>
+          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>¥{formatFund(save.fundBalance)}万</Text>
         </View>
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.15)' }} />
         <View style={{ flex: 2, alignItems: 'center' }}>
@@ -154,7 +154,7 @@ export default function SciTechScreen() {
           <View style={{ margin: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: '#D0D8E0', padding: 14, gap: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#1D3B5E' }}>{currentDir.icon} {currentDir.name}</Text>
-              <Text style={{ fontSize: 11, color: '#888' }}>每次 ¥{formatMoney(currentDir.cost)}万</Text>
+              <Text style={{ fontSize: 11, color: '#888' }}>每次 ¥{formatFund(currentDir.cost)}</Text>
             </View>
             <Text style={{ fontSize: 11, color: '#666', lineHeight: 16 }}>{currentDir.desc}</Text>
             {/* 进度条 */}
@@ -223,7 +223,7 @@ export default function SciTechScreen() {
                       {isActive && <View style={{ backgroundColor: '#1D3B5E', paddingHorizontal: 6, paddingVertical: 2 }}><Text style={{ fontSize: 9, color: '#fff' }}>当前方向</Text></View>}
                     </View>
                     <Text style={{ fontSize: 10, color: '#777', lineHeight: 15, marginTop: 2 }}>{dir.desc}</Text>
-                    <Text style={{ fontSize: 10, color: '#C82829', marginTop: 3 }}>每次投入 ¥{formatMoney(dir.cost)}万 · 政绩 +{dir.meritReward}</Text>
+                    <Text style={{ fontSize: 10, color: '#C82829', marginTop: 3 }}>每次投入 ¥{formatFund(dir.cost)} · 政绩 +{dir.meritReward}</Text>
                   </View>
                 </Pressable>
               );

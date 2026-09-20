@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '@/client/supabase';
 import { useGame } from '@/ctx/GameContext';
 import { deleteSave } from '@/db/gameApi';
-import { RANK_CONFIG, gameDaysToDate, getAvatarEmoji, getAvatarBgColor } from '@/types/game';
+import { RANK_CONFIG, gameDaysToDate, getAvatarEmoji, getAvatarBgColor, formatMoney } from '@/types/game';
 
 type GameOverType = 'corruption' | 'accident' | 'purge' | 'fugitive' | 'dismissed';
 
@@ -226,9 +226,9 @@ export default function GameOverScreen() {
             <StatRow label="民心指数" value={`${save.moralValue} / 100`}
               color={save.moralValue < 20 ? '#C82829' : save.moralValue < 40 ? '#C87820' : '#2a7a3b'} />
             <StatRow label="在职时间" value={`${startDate} — ${endDate}`} />
-            <StatRow label="个人存款" value={`¥ ${(save.personalSavings / 10000).toFixed(1)} 万元`} />
+            <StatRow label="个人存款" value={`¥ ${formatMoney(save.personalSavings)}`} />
             {(type === 'corruption' || type === 'fugitive' || type === 'dismissed') && (
-              <StatRow label="涉案金额" value={`¥ ${(Number(save.illegalWealth ?? 0) / 10000).toFixed(1)} 万元`} color="#C82829" />
+              <StatRow label="涉案金额" value={`¥ ${formatMoney(Number(save.illegalWealth ?? 0))}`} color="#C82829" />
             )}
           </View>
         </View>

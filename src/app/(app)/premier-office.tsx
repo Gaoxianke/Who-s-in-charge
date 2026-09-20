@@ -339,7 +339,7 @@ export default function PremierOfficeScreen() {
       <View style={{ flexDirection: 'row', backgroundColor: '#5C0A0A', paddingVertical: 10, paddingHorizontal: 14, gap: 10 }}>
         <View style={{ flex: 1.5, alignItems: 'center' }}>
           <Text style={{ color: 'rgba(255,200,200,0.6)', fontSize: 9 }}>专项经费</Text>
-          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>¥{formatMoney(save.fundBalance)}</Text>
+          <Text style={{ color: '#FFD700', fontWeight: '700', fontSize: 13 }}>¥{formatFund(save.fundBalance)}</Text>
         </View>
         <View style={{ width: 1, backgroundColor: 'rgba(255,255,255,0.1)' }} />
         <View style={{ flex: 1, alignItems: 'center' }}>

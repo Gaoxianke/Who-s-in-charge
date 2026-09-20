@@ -108,9 +108,7 @@ function ProjectCard({ tpl, onBuild, canAfford, loading, alreadyBuilt }: {
               <Text style={{ fontSize: 12, color: '#C82829', fontWeight: '700', flex: 1 }}>
                 {tpl.costFund >= 10000
                   ? `${(tpl.costFund / 10000).toFixed(tpl.costFund % 10000 === 0 ? 0 : 1)}亿元`
-                  : tpl.costFund >= 1
-                    ? `${tpl.costFund}万元`
-                    : `${formatMoney(tpl.costFund * 10000)}元`}
+                  : `${tpl.costFund}万元`}
               </Text>
             </View>
             {/* 工期 */}
@@ -181,7 +179,7 @@ function BuildingCard({ proj, gameDays }: { proj: BuildProject; gameDays: number
       </View>
       <ProgressBar value={elapsed} total={proj.durationDays} />
       <Text style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
-        财政投入：{formatMoney(proj.costFund)} 元 · 开工：{gameDaysToDate(proj.startDay)}
+        财政投入：{formatFund(proj.costFund)} · 开工：{gameDaysToDate(proj.startDay)}
       </Text>
     </View>
   );
@@ -195,7 +193,7 @@ function CompletedCard({ proj }: { proj: BuildProject }) {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 12, fontWeight: '600', color: '#555' }}>{proj.name}</Text>
           <Text style={{ fontSize: 10, color: '#888', marginTop: 3 }}>
-            竣工：{gameDaysToDate(proj.finishDay)} · 投入 {formatMoney(proj.costFund)} 元
+            竣工：{gameDaysToDate(proj.finishDay)} · 投入 {formatFund(proj.costFund)}
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 2 }}>

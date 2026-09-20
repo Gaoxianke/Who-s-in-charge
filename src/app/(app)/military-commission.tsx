@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
-import { formatMoney } from '@/types/game';
+import { formatMoney, formatFund } from '@/types/game';
 
 // ── 军委委员数据（参考现实中枢军委组成） ────────────────────────────
 interface CmcMember {
@@ -223,7 +223,7 @@ export default function MilitaryCommissionScreen() {
   const handleBudget = async (item: BudgetItem) => {
     if (acting || approvedBudgets.has(item.id)) return;
     if ((save.fundBalance ?? 0) < item.amount) {
-      showResult(`⚠️ 经费不足，需要 ¥${formatMoney(item.amount)}`);
+      showResult(`⚠️ 经费不足，需要 ¥${formatFund(item.amount)}`);
       return;
     }
     setActing(true);
@@ -241,7 +241,7 @@ export default function MilitaryCommissionScreen() {
   const handleExercise = async (ex: Exercise) => {
     if (acting || conductedExercises.has(ex.id)) return;
     if ((save.fundBalance ?? 0) < ex.cost) {
-      showResult(`⚠️ 经费不足，需要 ¥${formatMoney(ex.cost)}`);
+      showResult(`⚠️ 经费不足，需要 ¥${formatFund(ex.cost)}`);
       return;
     }
     setActing(true);
@@ -259,7 +259,7 @@ export default function MilitaryCommissionScreen() {
   const handleEquip = async (eq: EquipProject) => {
     if (acting || launchedProjects.has(eq.id)) return;
     if ((save.fundBalance ?? 0) < eq.cost) {
-      showResult(`⚠️ 经费不足，需要 ¥${formatMoney(eq.cost)}`);
+      showResult(`⚠️ 经费不足，需要 ¥${formatFund(eq.cost)}`);
       return;
     }
     setActing(true);
@@ -308,7 +308,7 @@ export default function MilitaryCommissionScreen() {
           {[
             { label: '国防安全', value: `${save.securityIndex ?? 50}`, unit: '分',  color: '#E8D0A0' },
             { label: '政绩积累', value: `${save.meritPoints.toFixed(0)}`, unit: '分', color: '#7EC8E3' },
-            { label: '专项经费', value: formatMoney(save.fundBalance), unit: '万', color: '#90EE90' },
+            { label: '专项经费', value: formatFund(save.fundBalance), unit: '万', color: '#90EE90' },
             { label: '任期',     value: `${save.tenureYears}`, unit: '年',        color: '#FFB6C1' },
           ].map(s => (
             <View key={s.label} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', padding: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
@@ -414,7 +414,7 @@ export default function MilitaryCommissionScreen() {
                           <Text style={{ fontSize: 10, color: 'rgba(200,200,200,0.6)', marginTop: 3, lineHeight: 14 }}>{item.desc}</Text>
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 5 }}>
                             <View style={{ backgroundColor: 'rgba(200,160,80,0.15)', paddingHorizontal: 5, paddingVertical: 2 }}>
-                              <Text style={{ fontSize: 9, color: '#E8D0A0' }}>预算 ¥{formatMoney(item.amount)}</Text>
+                              <Text style={{ fontSize: 9, color: '#E8D0A0' }}>预算 ¥{formatFund(item.amount)}</Text>
                             </View>
                             <View style={{ backgroundColor: 'rgba(200,80,80,0.15)', paddingHorizontal: 5, paddingVertical: 2 }}>
                               <Text style={{ fontSize: 9, color: '#FF8080' }}>安全+{item.securityBonus}</Text>
@@ -430,7 +430,7 @@ export default function MilitaryCommissionScreen() {
                         style={{ paddingVertical: 10, alignItems: 'center', backgroundColor: canDo ? '#C82829' : '#222' }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>
-                          {acting ? '审批中…' : canDo ? `▶ 批准预算（¥${formatMoney(item.amount)}）` : '经费不足'}
+                          {acting ? '审批中…' : canDo ? `▶ 批准预算（¥${formatFund(item.amount)}）` : '经费不足'}
                         </Text>
                       </Pressable>
                     )}
@@ -476,7 +476,7 @@ export default function MilitaryCommissionScreen() {
                           </View>
                           <Text style={{ fontSize: 10, color: 'rgba(200,200,200,0.6)', marginTop: 3, lineHeight: 14 }}>{ex.desc}</Text>
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
-                            <Text style={{ fontSize: 9, color: '#E8D0A0', backgroundColor: 'rgba(200,160,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>费用 ¥{formatMoney(ex.cost)}</Text>
+                            <Text style={{ fontSize: 9, color: '#E8D0A0', backgroundColor: 'rgba(200,160,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>费用 ¥{formatFund(ex.cost)}</Text>
                             <Text style={{ fontSize: 9, color: '#FF8080', backgroundColor: 'rgba(200,80,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>安全+{ex.securityBonus}</Text>
                             <Text style={{ fontSize: 9, color: '#90EE90', backgroundColor: 'rgba(80,200,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>政绩+{ex.meritReward}</Text>
                             <Text style={{ fontSize: 9, color: '#7EC8E3', backgroundColor: 'rgba(80,150,200,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>历时{ex.duration}</Text>
@@ -533,7 +533,7 @@ export default function MilitaryCommissionScreen() {
                           </View>
                           <Text style={{ fontSize: 10, color: 'rgba(200,200,200,0.6)', marginTop: 3, lineHeight: 14 }}>{eq.desc}</Text>
                           <View style={{ flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
-                            <Text style={{ fontSize: 9, color: '#E8D0A0', backgroundColor: 'rgba(200,160,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>投资 ¥{formatMoney(eq.cost)}</Text>
+                            <Text style={{ fontSize: 9, color: '#E8D0A0', backgroundColor: 'rgba(200,160,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>投资 ¥{formatFund(eq.cost)}</Text>
                             <Text style={{ fontSize: 9, color: '#FF8080', backgroundColor: 'rgba(200,80,80,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>安全+{eq.securityBonus}</Text>
                             <Text style={{ fontSize: 9, color: '#7EC8E3', backgroundColor: 'rgba(80,150,200,0.12)', paddingHorizontal: 5, paddingVertical: 2 }}>研发周期 {eq.period}</Text>
                           </View>
@@ -547,7 +547,7 @@ export default function MilitaryCommissionScreen() {
                         style={{ paddingVertical: 10, alignItems: 'center', backgroundColor: canDo ? '#7B0026' : '#222' }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>
-                          {acting ? '立项中…' : canDo ? `▶ 批准立项（¥${formatMoney(eq.cost)}）` : '经费不足'}
+                          {acting ? '立项中…' : canDo ? `▶ 批准立项（¥${formatFund(eq.cost)}）` : '经费不足'}
                         </Text>
                       </Pressable>
                     )}
@@ -650,7 +650,7 @@ export default function MilitaryCommissionScreen() {
                                 key={action.id}
                                 onPress={async () => {
                                   if (done || acting) return;
-                                  if (!canAfford) { showResult(`⚠️ 经费不足，需要 ¥${formatMoney(action.cost)}`); return; }
+                                  if (!canAfford) { showResult(`⚠️ 经费不足，需要 ¥${formatFund(action.cost)}`); return; }
                                   setActing(true);
                                   const updates: Record<string, number> = { meritPoints: (save.meritPoints ?? 0) + action.meritReward };
                                   if (action.cost > 0) updates.fundBalance = Math.max(0, (save.fundBalance ?? 0) - action.cost);
@@ -666,7 +666,7 @@ export default function MilitaryCommissionScreen() {
                                   <Text style={{ color: done ? '#666' : '#fff', fontSize: 11, fontWeight: '600' }}>{action.label}</Text>
                                   <Text style={{ color: '#888', fontSize: 9, marginTop: 2 }}>{action.desc}</Text>
                                   {action.cost > 0 && (
-                                    <Text style={{ color: '#a0b4cc', fontSize: 9, marginTop: 1 }}>消耗：¥{formatMoney(action.cost)} · 政绩+{action.meritReward}</Text>
+                                    <Text style={{ color: '#a0b4cc', fontSize: 9, marginTop: 1 }}>消耗：¥{formatFund(action.cost)} · 政绩+{action.meritReward}</Text>
                                   )}
                                 </View>
                                 {done ? (

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
-import { formatMoney } from '@/types/game';
+import { formatMoney, formatFund } from '@/types/game';
 
 // ── 外贸板块 ────────────────────────────────────────────────────────
 interface TradeProject {
@@ -133,7 +133,7 @@ export default function NationalConstructionScreen() {
   ) => {
     if (acting || activated.has(id)) return;
     if ((save.fundBalance ?? 0) < cost) {
-      setResult(`⚠️ 经费不足，需要 ¥${formatMoney(cost)}`);
+      setResult(`⚠️ 经费不足，需要 ¥${formatFund(cost)}`);
       setTimeout(() => setResult(''), 2500);
       return;
     }
@@ -148,7 +148,7 @@ export default function NationalConstructionScreen() {
     }
     await updateGameSave(patch as Parameters<typeof updateGameSave>[0]);
     setActivated(prev => new Set(prev).add(id));
-    setResult(`✅ 已启动「${label}」· 月收益 +¥${formatMoney(monthlyRevenue)}/月`);
+    setResult(`✅ 已启动「${label}」· 月收益 +¥${formatFund(monthlyRevenue)}/月`);
     setActing(false);
     setTimeout(() => setResult(''), 3500);
   };
@@ -188,7 +188,7 @@ export default function NationalConstructionScreen() {
             { label: '合计月入账',   value: totalMonthly,   color: '#FF8C69' },
           ].map(s => (
             <View key={s.label} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.07)', padding: 8, alignItems: 'center' }}>
-              <Text style={{ color: s.color, fontWeight: '700', fontSize: 12 }}>+{formatMoney(s.value)}</Text>
+              <Text style={{ color: s.color, fontWeight: '700', fontSize: 12 }}>+{formatFund(s.value)}</Text>
               <Text style={{ color: 'rgba(180,200,230,0.6)', fontSize: 8, marginTop: 1 }}>{s.label}</Text>
             </View>
           ))}
@@ -210,7 +210,7 @@ export default function NationalConstructionScreen() {
           >
             <Text style={{ fontSize: 11, fontWeight: tab === id ? '700' : '400', color: tab === id ? '#0D2137' : '#888' }}>{label}</Text>
             {rev > 0 && (
-              <Text style={{ fontSize: 9, color: '#2a7a3b', marginTop: 1 }}>+{formatMoney(rev)}/月</Text>
+              <Text style={{ fontSize: 9, color: '#2a7a3b', marginTop: 1 }}>+{formatFund(rev)}/月</Text>
             )}
           </Pressable>
         ))}
@@ -341,11 +341,11 @@ function ProjectCard({
             <View style={{ flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
               {cost > 0 && (
                 <View style={{ backgroundColor: '#FFF9E6', paddingHorizontal: 5, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 9, color: '#7B5E2A' }}>启动 ¥{formatMoney(cost)}</Text>
+                  <Text style={{ fontSize: 9, color: '#7B5E2A' }}>启动 ¥{formatFund(cost)}</Text>
                 </View>
               )}
               <View style={{ backgroundColor: '#F0FAF0', paddingHorizontal: 5, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 9, color: '#2a7a3b', fontWeight: '700' }}>+¥{formatMoney(monthlyRev)}/月</Text>
+                <Text style={{ fontSize: 9, color: '#2a7a3b', fontWeight: '700' }}>+¥{formatFund(monthlyRev)}/月</Text>
               </View>
               <View style={{ backgroundColor: '#F0F4F8', paddingHorizontal: 5, paddingVertical: 2 }}>
                 <Text style={{ fontSize: 9, color: '#2B4B6F' }}>{effectLabel}</Text>
@@ -367,7 +367,7 @@ function ProjectCard({
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>
             {acting ? '启动中…' : canAct
-              ? cost > 0 ? `▶ 启动（¥${formatMoney(cost)}）` : '▶ 立即启动（免费）'
+                ? cost > 0 ? `▶ 启动（¥${formatFund(cost)}）` : '▶ 立即启动（免费）'
               : '⚠️ 经费不足'}
           </Text>
         </Pressable>

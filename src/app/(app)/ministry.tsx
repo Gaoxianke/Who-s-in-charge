@@ -943,7 +943,7 @@ export default function MinistryScreen() {
             <View style={{ width: 1, backgroundColor: '#EEE' }} />
             <View style={{ flex: 1, alignItems: 'center' }}>
               <Text style={{ color: '#888', fontSize: 9 }}>专项经费</Text>
-              <Text style={{ color: '#C82829', fontWeight: '700', fontSize: 14 }}>¥{formatMoney(save.fundBalance)}</Text>
+              <Text style={{ color: '#C82829', fontWeight: '700', fontSize: 14 }}>¥{formatFund(save.fundBalance)}</Text>
             </View>
           </View>
           {SCITECH_DIRS.map(dir => {
