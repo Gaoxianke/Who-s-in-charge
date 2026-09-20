@@ -10,7 +10,7 @@ import { supabase } from '@/client/supabase';
 import { resolveGateTarget, gateTargetHref } from '@/lib/approvalGate';
 import { useGame } from '@/ctx/GameContext';
 import type { UpperInspectEvent } from '@/ctx/GameContext';
-import { getBossTasks, getPoliceCases, deleteSave, resolveSubVisit, getAllReports, markReportsRead, updateSave, playerRenameSave, getAccountAndActivationCode } from '@/db/gameApi';
+import { getBossTasks, getPoliceCases, deleteSave, resolveSubVisit, getAllReports, markReportsRead, updateSave, playerRenameSave, getAccountAndActivationCode, createSave } from '@/db/gameApi';
 import { debounceCheckName } from '@/lib/sensitiveFilter';
 import { gameDaysToDate, RANK_CONFIG, getRankGrade, getLegalTitle, getAvatarEmoji, getAvatarBgColor, getDeptNameByRank, CONCURRENT_POST_CONFIG, getAvailableConcurrentPosts, MINISTRY_POOL, formatMoney, estimateNationalGdp, getRetirementConfig, checkRetirementStatus, MAX_RANK_LEVEL } from '@/types/game';
 import type { DeptKey } from '@/types/game';
@@ -140,9 +140,22 @@ export default function HomeScreen() {
   }
 
   if (!save) {
-    // 拆分后新玩家无占位档：引导进入角色创建页建档
-    router.replace('/(app)/character-create');
-    return null;
+    // 新玩家无存档：自动创建占位档并刷新，避免白屏
+    (async () => {
+      const created = await createSave();
+      if (created) {
+        await refreshSave();
+      } else {
+        // 创建失败时降级到角色创建页
+        router.replace('/(app)/character-create');
+      }
+    })();
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F7F5' }}>
+        <ActivityIndicator size="large" color="#C82829" />
+        <Text style={{ marginTop: 12, color: '#666', fontSize: 13 }}>正在初始化您的档案...</Text>
+      </View>
+    );
   }
 
   // 新玩家未完成角色创建，强制跳转

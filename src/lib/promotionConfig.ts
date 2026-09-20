@@ -59,8 +59,8 @@ export const BREAK_RULE = {
   maxUsePerTier: 1,
 };
 
-// ── 考评加速减免比例 ──
-export const ASSESS_ACCEL = { excellent: 0.10, excellent2: 0.125, special: 0.13, special2: 0.15 };
+// ── 考评加速减免比例（中等加速方案）──
+export const ASSESS_ACCEL = { excellent: 0.30, excellent2: 0.40, special: 0.45, special2: 0.50 };
 
 // ── 晋升冻结与扎根期 ──
 export const FREEZE_RULES = {

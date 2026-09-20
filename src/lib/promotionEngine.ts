@@ -122,19 +122,21 @@ export function isOverAgeTransition(save: PlayerSave): boolean {
   return save.playerAge > range.ageMax + AGE_BONUS.overAgeGraceYears;
 }
 
-/** 是否功高盖主（已取消，恒返回 false） */
-export function isPrestigeHigh(_save: PlayerSave): boolean {
-  return false;
+/** 是否功高盖主：民心≥90 且连续2年优秀/特等 */
+export function isPrestigeHigh(save: PlayerSave): boolean {
+  return save.popularSupport >= 90 && (save.consecutiveExcellentYears ?? 0) >= 2;
 }
 
-/** 是否非正式关系密切（已取消，恒返回 false） */
-export function isClique(_save: PlayerSave): boolean {
-  return false;
+/** 是否非正式关系密切：某位上司好感≥85 */
+export function isClique(save: PlayerSave): boolean {
+  const favors = [save.bossFavor, save.boss2Favor, save.boss3Favor];
+  return favors.some(f => f >= 85);
 }
 
-/** 是否领导阻挠（已取消，恒返回 false） */
-export function isLeaderObstruct(_save: PlayerSave): boolean {
-  return false;
+/** 是否领导阻挠：某位上司好感<40 */
+export function isLeaderObstruct(save: PlayerSave): boolean {
+  const favors = [save.bossFavor, save.boss2Favor, save.boss3Favor];
+  return favors.some(f => f < 40);
 }
 
 /** 玩家竞争综合评分（含年龄红利、基层系数、§4.2 K_faction） */
@@ -278,9 +280,7 @@ export function generateDocNo(gameDays: number): string {
 }
 
 // ── 政治生态月度结算 ──
-// 说明：功高盖主 / 非正式关系密切 / 领导阻挠 / 越级赏识 四类事件已按需求全部取消，
-// 仅保留派系（faction）相关阻断逻辑（在 isPromotionFrozen 中处理）。此函数现仅处理
-// 冻结到期解除，不再产生任何上述生态事件，彻底熔断两套系统。
+// 功高盖主 / 非正式关系密切 / 领导阻挠 / 越级赏识 四类政治生态事件
 export interface EcologyResult {
   bossFavorDelta: number;
   boss2FavorDelta: number;
@@ -302,7 +302,7 @@ export interface EcologyResult {
 }
 
 /**
- * 每月结算政治生态（已熔断：仅处理冻结到期解除，不再产生功高盖主/非正式关系密切/领导阻挠/越级赏识事件）。
+ * 每月结算政治生态：功高盖主 / 非正式关系密切 / 领导阻挠 / 越级赏识
  * 返回增量与标记，由 GameContext 合并写入存档。
  */
 export function settlePoliticalEcology(save: PlayerSave, gameDays: number): EcologyResult {
@@ -312,21 +312,62 @@ export function settlePoliticalEcology(save: PlayerSave, gameDays: number): Ecol
     prestige_flag: false, clique_flag: false,
     leader_obstruct: false, promotion_frozen: save.promotion_frozen,
     promo_freeze_until_day: save.promo_freeze_until_day,
-    patron_id: null, patron_favor: 0,
-    patron_expire_day: 0, patron_fail_months: 0,
+    patron_id: save.patron_id ?? null, patron_favor: save.patron_favor ?? 0,
+    patron_expire_day: save.patron_expire_day ?? 0, patron_fail_months: save.patron_fail_months ?? 0,
     events: [],
   };
 
-  // 冻结到期解除（历史冻结仍可正常解除）
+  // 冻结到期解除
   if (save.promotion_frozen && save.promo_freeze_until_day > 0 && gameDays >= save.promo_freeze_until_day) {
     r.promotion_frozen = false;
     r.promo_freeze_until_day = 0;
     r.events.push('晋升冻结已解除');
   }
 
-  // 清除历史遗留的功高盖主 / 非正式关系密切 / 越级赏识标记
-  if (save.prestige_flag || save.clique_flag || save.patron_id) {
-    r.events.push('已清理历史生态标记');
+  // §1 功高盖主：民心≥90且连续2年优秀 → 上司好感每月衰减
+  if (isPrestigeHigh(save)) {
+    r.prestige_flag = true;
+    r.bossFavorDelta -= 2;
+    r.boss2FavorDelta -= 2;
+    r.boss3FavorDelta -= 2;
+    r.events.push('⚠️ 功高盖主：民心声望过高，引发上级警觉，三位上司好感每月-2');
+  }
+
+  // §2 非正式关系密切：某位上司好感≥85 → 冻结晋升180天
+  if (isClique(save)) {
+    r.clique_flag = true;
+    if (!save.promotion_frozen) {
+      r.promotion_frozen = true;
+      r.promo_freeze_until_day = gameDays + 180;
+      r.meritDelta -= 200;
+      r.popularDelta -= 10;
+      r.events.push('❌ 非正式关系密切：与某位上司关系过于密切，引发纪检关注，晋升冻结180天，功绩-200，民心-10');
+    }
+  }
+
+  // §3 领导阻挠：某位上司好感<40 → 竞争对手加分
+  if (isLeaderObstruct(save)) {
+    r.leader_obstruct = true;
+    r.meritDelta -= 50;
+    r.events.push('⚠️ 领导阻挠：某位上司对你不满，晋升竞争中处于劣势，功绩-50');
+  }
+
+  // §4 越级赏识：功绩≥1.2倍要求且民心≥80 → 5%概率触发庇护
+  const meritRatio = save.meritPoints / (save.requiredMerit || 1);
+  if (meritRatio >= 1.2 && save.popularSupport >= 80 && Math.random() < 0.05) {
+    r.patron_id = 'upper_patron';
+    r.patron_favor = 15;
+    r.patron_expire_day = gameDays + 365;
+    r.meritDelta += 80;
+    r.events.push('✨ 越级赏识：上级领导注意到你的突出表现，获得政治庇护，功绩+80，庇护有效期365天');
+  }
+
+  // §5 庇护到期检查
+  if (save.patron_id && save.patron_expire_day > 0 && gameDays >= save.patron_expire_day) {
+    r.patron_id = null;
+    r.patron_favor = 0;
+    r.patron_expire_day = 0;
+    r.events.push('庇护关系已到期');
   }
 
   return r;

@@ -17,7 +17,7 @@ import type { ExchangeOfficer } from '@/db/gameApi';
 import { RANK_CONFIG, RANK_SALARY, RANK_FUND_MULTIPLIER, RANK_PERSONAL_HPF, RANK_MONTHLY_ALLOWANCE, RANK_ANNUAL_BONUS_MONTHS, checkRetirementStatus, calcRenewalVote } from '@/types/game';
 import { getRandomMinistry } from '@/types/game';
 import { computeKpi } from '@/lib/kpiEngine';
-import { settlePoliticalEcology } from '@/lib/promotionEngine';
+import { settlePoliticalEcology, computeTenureAccel } from '@/lib/promotionEngine';
 
 export interface BossChangeEvent {
   bossNum: 1 | 2 | 3;
@@ -360,23 +360,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const shouldTriggerEvent = canTriggerEvent && Math.random() < eventProbability;
     if (shouldTriggerEvent) newEventsThisYear++;
 
-    // 计算晋升条件：优秀排名缩短任期要求（加速效果×0.2）
-    // 原加速档位（下调前）：连续2年特等-75%、特等-65%、连续2年优秀-62.5%、优秀-50%
-    // 现加速档位（下调后）：连续2年特等-15%、特等-13%、连续2年优秀-12.5%、优秀-10%
+    // 计算晋升条件：通过统一晋升引擎计算任期加速
     const rankConfig = RANK_CONFIG[current.rankLevel];
     const isTopRank = newAnnualRankPct >= 95; // 特等
-    let effectiveTenureRequired: number;
-    if (!newIsExcellentRank) {
-      effectiveTenureRequired = rankConfig.requiredTenureYears;
-    } else if (isTopRank && newConsecutiveExcellentYears >= 2) {
-      effectiveTenureRequired = Math.ceil(rankConfig.requiredTenureYears * 0.85); // 原0.25→减免75%削弱为减免15%
-    } else if (isTopRank) {
-      effectiveTenureRequired = Math.ceil(rankConfig.requiredTenureYears * 0.87); // 原0.35→减免65%削弱为减免13%
-    } else if (newConsecutiveExcellentYears >= 2) {
-      effectiveTenureRequired = Math.ceil(rankConfig.requiredTenureYears * 0.875); // 原0.375→减免62.5%削弱为减免12.5%
-    } else {
-      effectiveTenureRequired = Math.ceil(rankConfig.requiredTenureYears * 0.9); // 原0.5→减免50%削弱为减免10%
-    }
+    // 使用 promotionEngine 中的 computeTenureAccel 统一计算加速率
+    const accel = computeTenureAccel({
+      ...current,
+      assessmentGrade,
+      consecutiveExcellentYears: newConsecutiveExcellentYears,
+    } as PlayerSave);
+    const effectiveTenureRequired = Math.ceil(rankConfig.requiredTenureYears * (1 - accel));
 
     // ── 分层级 KPI 考核评估（替代单一政绩门槛） ──────────────────────────────
     // 构建当前时间点的快照（使用本轮最新累计值）
