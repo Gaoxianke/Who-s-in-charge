@@ -92,12 +92,12 @@ function Seal() {
 export default function SignIn() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [emailFocus, setEmailFocus] = useState(false);
+  const [usernameFocus, setUsernameFocus] = useState(false);
   const [pwFocus, setPwFocus] = useState(false);
   const [btnPressed, setBtnPressed] = useState(false);
   // 公告
@@ -219,20 +219,20 @@ export default function SignIn() {
     setLoading(true);
     setError('');
     if (isRegister) {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { error: signUpError } = await supabase.auth.signUp({ email: username.includes('@') ? username : username + '@qingyunlu.game', password });
       if (signUpError) {
         const msg = signUpError.message ?? '';
         if (msg.includes('already registered') || msg.includes('already exists')) {
           setError('该账号已注册，请直接登录');
         } else if (msg.includes('invalid') || msg.includes('Invalid')) {
-          setError('邮箱格式无效，请检查后重试');
+          setError('账号格式无效，请检查后重试');
         } else {
           setError(msg || '注册失败，请稍后重试');
         }
         setLoading(false);
         return;
       }
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: username.includes('@') ? username : username + '@qingyunlu.game', password });
       if (signInError) {
         setError('注册成功，请重新登录');
         setIsRegister(false);
@@ -241,15 +241,15 @@ export default function SignIn() {
       }
       await routeAfterLogin();
     } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: username.includes('@') ? username : username + '@qingyunlu.game', password });
       if (signInError) {
         const msg = signInError.message ?? '';
         if (msg.toLowerCase().includes('banned') || msg.toLowerCase().includes('user is banned')) {
           // 账号被封禁：显示友好提示 + 申诉入口
           setError('🚫 您的账号已被系统封禁（可能原因：违规操作、重复注册或设备异常）。如需申诉，请点击下方"申请申诉"。');
-          setAppealEmail(email.trim());
+          setAppealEmail(username.trim());
         } else if (msg.includes('Email not confirmed')) {
-          setError('邮箱尚未验证，请联系管理员或稍后重试');
+          setError('账号尚未激活，请联系管理员或稍后重试');
         } else if (msg.includes('Invalid login') || msg.includes('Invalid credentials') || msg.includes('invalid')) {
           setError('账号或密码错误，请重试');
         } else if (msg.includes('rate limit') || msg.includes('too many')) {
@@ -270,7 +270,7 @@ export default function SignIn() {
   // 提交忘记密码（发送重置邮件）
   const handleForgotPassword = async () => {
     const trimmed = fpEmail.trim();
-    if (!trimmed) { setFpResult({ ok: false, text: '请输入您的注册邮箱' }); return; }
+    if (!trimmed) { setFpResult({ ok: false, text: '请输入您的账号' }); return; }
     setFpLoading(true);
     setFpResult(null);
     const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
@@ -285,7 +285,7 @@ export default function SignIn() {
   // 提交封禁申诉
   const handleSubmitAppeal = async () => {
     if (!appealEmail.trim() || appealReason.trim().length < 5) {
-      setAppealResult({ ok: false, text: '请填写账号邮箱和不少于5字的申诉理由' });
+      setAppealResult({ ok: false, text: '请填写账号和不少于5字的申诉理由' });
       return;
     }
     setAppealSubmitting(true);
@@ -416,12 +416,12 @@ export default function SignIn() {
               {/* 邮箱 */}
               <View>
                 <Text style={{ fontSize: 10, color: C.textSecond, letterSpacing: 2, marginBottom: 6 }}>
-                  账号（邮箱）
+                  账号（用户名）
                 </Text>
                 <TextInput
                   style={{
                     borderWidth: 1,
-                    borderColor: emailFocus ? C.inputFocus : C.inputBorder,
+                    borderColor: usernameFocus ? C.inputFocus : C.inputBorder,
                     backgroundColor: C.inputBg,
                     paddingHorizontal: 14,
                     paddingVertical: 12,
@@ -429,13 +429,13 @@ export default function SignIn() {
                     color: C.textPrimary,
                     borderRadius: 0,
                   }}
-                  placeholder="请输入邮箱地址"
+                  placeholder="请输入用户名"
                   placeholderTextColor={C.textHint}
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setEmailFocus(true)}
-                  onBlur={() => setEmailFocus(false)}
-                  keyboardType="email-address"
+                  value={username}
+                  onChangeText={setUsername}
+                  onFocus={() => setUsernameFocus(true)}
+                  onBlur={() => setUsernameFocus(false)}
+                  
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -579,7 +579,7 @@ export default function SignIn() {
               {/* 忘记密码入口（仅登录模式） */}
               {!isRegister ? (
                 <Pressable
-                  onPress={() => { setShowForgotPw(true); setFpEmail(email.trim()); setFpResult(null); }}
+                  onPress={() => { setShowForgotPw(true); setFpEmail(username.trim()); setFpResult(null); }}
                   style={{ alignSelf: 'center', paddingVertical: 4 }}
                 >
                   <Text style={{ color: C.goldDim, fontSize: 11, letterSpacing: 0.5, textDecorationLine: 'underline' }}>
@@ -681,18 +681,18 @@ export default function SignIn() {
             <View style={{ height: 2, backgroundColor: C.gold, marginBottom: 4 }} />
             <Text style={{ color: C.goldLight, fontSize: 15, fontWeight: '700', letterSpacing: 1 }}>🔑 忘记密码</Text>
             <Text style={{ color: C.textSecond, fontSize: 11, lineHeight: 18 }}>
-              输入注册邮箱，系统将发送密码重置链接。请检查收件箱（含垃圾邮件箱）。
+              输入注册账号，系统将发送密码重置链接。请检查收件箱（含垃圾邮件箱）。
             </Text>
-            <Text style={{ color: C.textSecond, fontSize: 10, marginTop: 2 }}>注册邮箱</Text>
+            <Text style={{ color: C.textSecond, fontSize: 10, marginTop: 2 }}>注册账号</Text>
             <TextInput
               style={{ borderWidth: 1, borderColor: C.inputBorder, backgroundColor: C.inputBg, paddingHorizontal: 12, paddingVertical: 10, color: C.textPrimary, fontSize: 13 }}
-              placeholder="请输入您的注册邮箱"
+              placeholder="请输入您的账号"
               placeholderTextColor={C.textHint}
               value={fpEmail}
               onChangeText={setFpEmail}
               autoCapitalize="none"
               autoCorrect={false}
-              keyboardType="email-address"
+              
             />
             {fpResult ? (
               <View style={{ backgroundColor: fpResult.ok ? 'rgba(42,122,59,0.15)' : C.redBg, borderLeftWidth: 2, borderLeftColor: fpResult.ok ? '#2a7a3b' : C.red, paddingHorizontal: 10, paddingVertical: 8 }}>
@@ -752,7 +752,7 @@ export default function SignIn() {
             </View>
             <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
               <Text style={{ color: C.textPrimary, fontSize: 12, lineHeight: 22 }}>
-                {"《青云路》隐私政策\n\n一、信息收集\n本游戏仅收集以下必要信息：\n1. 注册邮箱（用于账号验证与找回）；\n2. 游戏存档数据（存储于云端服务器）；\n3. 设备标识符（用于防止同设备重复注册，保障公平性）。\n\n二、信息使用\n收集的信息仅用于：\n1. 提供正常游戏服务；\n2. 防范恶意注册和账号滥用；\n3. 统计在线数据，改善游戏体验。\n\n三、信息保护\n我们采用加密技术保护您的数据，不会将您的个人信息出售或提供给第三方。\n\n四、信息删除\n您可随时联系管理员申请注销账号，账号注销后相关数据将被永久删除。\n\n五、第三方服务\n本游戏使用 Supabase 提供数据库与认证服务，详情请参阅 Supabase 隐私政策。\n\n六、联系方式\n如有隐私相关问题，请通过游戏内官方渠道联系管理员。\n\n更新日期：2026年"}
+                {"《青云路》隐私政策\n\n一、信息收集\n本游戏仅收集以下必要信息：\n1. 注册账号（用于登录与找回）；\n2. 游戏存档数据（存储于云端服务器）；\n3. 设备标识符（用于防止同设备重复注册，保障公平性）。\n\n二、信息使用\n收集的信息仅用于：\n1. 提供正常游戏服务；\n2. 防范恶意注册和账号滥用；\n3. 统计在线数据，改善游戏体验。\n\n三、信息保护\n我们采用加密技术保护您的数据，不会将您的个人信息出售或提供给第三方。\n\n四、信息删除\n您可随时联系管理员申请注销账号，账号注销后相关数据将被永久删除。\n\n五、第三方服务\n本游戏使用 Supabase 提供数据库与认证服务，详情请参阅 Supabase 隐私政策。\n\n六、联系方式\n如有隐私相关问题，请通过游戏内官方渠道联系管理员。\n\n更新日期：2026年"}
               </Text>
             </ScrollView>
             <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: C.divider }}>
@@ -806,18 +806,18 @@ export default function SignIn() {
           <Pressable style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.gold, padding: 18, gap: 10 }} onPress={() => {}}>
             <Text style={{ color: C.goldLight, fontSize: 15, fontWeight: '700', letterSpacing: 1 }}>📨 封禁申诉</Text>
             <Text style={{ color: C.textSecond, fontSize: 11, lineHeight: 18 }}>
-              请填写被封禁的账号邮箱与申诉理由，提交后由超级管理员审核。审核通过将自动解封。
+              请填写被封禁的账号与申诉理由，提交后由超级管理员审核。审核通过将自动解封。
             </Text>
-            <Text style={{ color: C.textSecond, fontSize: 10, marginTop: 2 }}>账号邮箱</Text>
+            <Text style={{ color: C.textSecond, fontSize: 10, marginTop: 2 }}>账号</Text>
             <TextInput
               style={{ borderWidth: 1, borderColor: C.inputBorder, backgroundColor: C.inputBg, paddingHorizontal: 12, paddingVertical: 10, color: C.textPrimary, fontSize: 13 }}
-              placeholder="请输入被封禁的账号邮箱"
+              placeholder="请输入被封禁的账号"
               placeholderTextColor={C.textHint}
               value={appealEmail}
               onChangeText={setAppealEmail}
               autoCapitalize="none"
               autoCorrect={false}
-              keyboardType="email-address"
+              
             />
             <Text style={{ color: C.textSecond, fontSize: 10 }}>申诉理由（不少于5字）</Text>
             <TextInput
