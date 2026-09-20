@@ -1,0 +1,1 @@
+ALTER TABLE player_saves ADD COLUMN struggle_prep jsonb NOT NULL DEFAULT '{}'::jsonb;

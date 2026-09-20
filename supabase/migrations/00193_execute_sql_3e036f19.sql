@@ -1,0 +1,1 @@
+BEGIN; SET LOCAL role TO authenticated; SET LOCAL "request.jwt.claims" TO '{"sub": "4308c875-e7a0-430f-8fb6-84498c2ff1ce", "role": "authenticated", "aud": "authenticated"}'; ROLLBACK;

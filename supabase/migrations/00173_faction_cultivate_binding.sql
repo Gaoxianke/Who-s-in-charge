@@ -1,0 +1,1 @@
+ALTER TABLE player_saves ADD COLUMN cultivate_binding jsonb NOT NULL DEFAULT '{}'::jsonb;

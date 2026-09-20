@@ -1,0 +1,1 @@
+ALTER TABLE player_saves ADD COLUMN IF NOT EXISTS last_promotion_cycle_id INTEGER NOT NULL DEFAULT 0;

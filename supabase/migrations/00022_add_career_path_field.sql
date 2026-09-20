@@ -1,0 +1,2 @@
+ALTER TABLE player_saves
+  ADD COLUMN IF NOT EXISTS career_path VARCHAR(20) NOT NULL DEFAULT '';

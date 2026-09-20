@@ -1,0 +1,4 @@
+
+ALTER TABLE player_saves
+  ADD COLUMN IF NOT EXISTS provident_fund_balance BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_annual_bonus_day  INTEGER NOT NULL DEFAULT 0;

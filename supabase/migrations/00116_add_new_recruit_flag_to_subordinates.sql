@@ -1,0 +1,1 @@
+ALTER TABLE subordinates ADD COLUMN new_recruit boolean NOT NULL DEFAULT false;

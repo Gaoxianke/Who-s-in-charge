@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 案牍米白底色 #F5F4F1 */
+    --background: 40 20% 96%;
+    --foreground: 0 0% 13%;
+    /* 卡片白 */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+    /* 主色：政务红 #C82829 */
+    --primary: 0 67% 47%;
+    --primary-foreground: 0 0% 100%;
+    /* 辅助色：公文蓝 #2B4B6F */
+    --secondary: 210 43% 30%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 40 12% 91%;
+    --muted-foreground: 0 0% 40%;
+    /* 强调色：公文蓝 #2B4B6F */
+    --accent: 210 43% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 67% 47%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 10% 84%;
+    --input: 40 10% 88%;
+    --ring: 0 67% 47%;
+    --radius: 0.125rem;
+  }
+}

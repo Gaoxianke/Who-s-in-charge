@@ -1,0 +1,21 @@
+
+ALTER TABLE player_saves
+  ADD COLUMN IF NOT EXISTS faction_influence       INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS political_wind          TEXT        DEFAULT 'balanced',
+  ADD COLUMN IF NOT EXISTS dominant_faction        TEXT        DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS last_wind_cycle_day     INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS faction_intelligence    INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS faction_cooldowns       JSONB       DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS coalitions              JSONB       DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS purge_count             INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS faction_joined_day      INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_flagged              BOOLEAN     DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS contact_attempts        INTEGER     DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS factionless_locked      BOOLEAN     DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS faction_promotion_locked BOOLEAN    DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS struggle_phase          TEXT        DEFAULT 'idle',
+  ADD COLUMN IF NOT EXISTS struggle_history        JSONB       DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS faction_echo_log        JSONB       DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS region_control          JSONB       DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS faction_treasury        JSONB       DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS cultivate_tier          JSONB       DEFAULT '{}';

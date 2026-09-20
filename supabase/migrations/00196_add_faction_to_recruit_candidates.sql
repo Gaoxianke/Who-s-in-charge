@@ -1,0 +1,1 @@
+ALTER TABLE public.recruit_candidates ADD COLUMN faction text;

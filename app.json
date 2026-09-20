@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "日历",
+    "slug": "qing-yun-lu-career",
+    "version": "1.0.64",
+    "orientation": "portrait",
+    "icon": "https://miaoda-edit-image.cdn.bcebos.com/du8r0a7ctszl/IMG-dw2eda16s7pc.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "bundleIdentifier": "com.miaoda.appdu8r0a7ctszl"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1,
+      "package": "com.miaoda.appdu8r0a7ctszl"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-sqlite",
+      "expo-font",
+      "expo-system-ui",
+      "expo-image",
+      "expo-sharing",
+      "expo-file-system",
+      "expo-secure-store"
+    ],
+    "router": {
+      "root": "src"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "appde7pqcfmrzsx"
+  }
+}

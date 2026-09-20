@@ -1,0 +1,1 @@
+ALTER TABLE test_codes ADD COLUMN group_name text NOT NULL DEFAULT '';

@@ -1,0 +1,2 @@
+ALTER TABLE construction_projects
+  ADD COLUMN IF NOT EXISTS cost_fund BIGINT NOT NULL DEFAULT 0;

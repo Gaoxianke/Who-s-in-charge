@@ -1,0 +1,5 @@
+
+ALTER TABLE player_saves
+  ADD COLUMN IF NOT EXISTS personal_savings BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS personal_assets   JSONB  NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS last_salary_day   INTEGER NOT NULL DEFAULT 0;

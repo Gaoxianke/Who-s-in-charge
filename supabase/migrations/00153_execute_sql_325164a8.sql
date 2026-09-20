@@ -1,0 +1,1 @@
+DO $$ BEGIN INSERT INTO test_codes (code, status) VALUES ('TSTTIMEOUT','unused'); RAISE EXCEPTION 'done'; END $$;

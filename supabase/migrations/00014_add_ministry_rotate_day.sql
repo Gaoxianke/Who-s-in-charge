@@ -1,0 +1,1 @@
+ALTER TABLE player_saves ADD COLUMN IF NOT EXISTS last_ministry_rotate_day integer NOT NULL DEFAULT 0;
