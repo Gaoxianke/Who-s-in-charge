@@ -62,8 +62,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshSave();
+      // 顺序执行：先刷新存档，完成后再做门禁检查，避免 save 为空时门禁误判
       (async () => {
+        await refreshSave();
         getAccountAndActivationCode().then(setAccountInfo);
         const { data: adminData } = await supabase.rpc('is_current_admin');
         const isAdminUser = Boolean(adminData);
@@ -133,35 +134,42 @@ export default function HomeScreen() {
     );
   }
 
+  // 无存档时自动创建占位档（从渲染路径移到副作用，避免竞态）
+  useEffect(() => {
+    if (isLoading || adminChecked === false) return; // 等待初始化完成
+    if (!save) {
+      (async () => {
+        const created = await createSave();
+        if (created) {
+          await refreshSave();
+        } else {
+          // 创建失败时降级到角色创建页
+          router.replace('/(app)/character-create');
+        }
+      })();
+    }
+  }, [isLoading, adminChecked, save, createSave, refreshSave, router]);
+
   // 管理员账号：一律进入后台，阻断进入游戏
   if (isAdmin) {
     router.replace('/(app)/admin-panel' as never);
     return null;
   }
 
+  // 新玩家未完成角色创建，强制跳转
+  if (save?.needsCharacterCreation) {
+    router.replace('/(app)/character-create');
+    return null;
+  }
+
   if (!save) {
-    // 新玩家无存档：自动创建占位档并刷新，避免白屏
-    (async () => {
-      const created = await createSave();
-      if (created) {
-        await refreshSave();
-      } else {
-        // 创建失败时降级到角色创建页
-        router.replace('/(app)/character-create');
-      }
-    })();
+    // useEffect 正在异步创建占位档中，展示过渡态
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F7F5' }}>
         <ActivityIndicator size="large" color="#C82829" />
         <Text style={{ marginTop: 12, color: '#666', fontSize: 13 }}>正在初始化您的档案...</Text>
       </View>
     );
-  }
-
-  // 新玩家未完成角色创建，强制跳转
-  if (save.needsCharacterCreation) {
-    router.replace('/(app)/character-create');
-    return null;
   }
 
   const rankConfig = RANK_CONFIG[save.rankLevel];

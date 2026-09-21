@@ -230,11 +230,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSave = useCallback(async () => {
     setIsLoading(true);
-    // 按设备存档偏好加载：有偏好档则优先加载该档，偏好为空或该档不存在时回退最新存档
-    const activeId = getActiveSaveLocal();
-    const data = activeId ? (await getSaveById(activeId)) ?? (await getSave()) : await getSave();
-    setSave(data);
-    setIsLoading(false);
+    try {
+      // 按设备存档偏好加载：有偏好档则优先加载该档，偏好为空或该档不存在时回退最新存档
+      const activeId = getActiveSaveLocal();
+      const data = activeId ? (await getSaveById(activeId)) ?? (await getSave()) : await getSave();
+      setSave(data);
+    } catch (err) {
+      console.error('[refreshSave] 加载存档失败:', err);
+      setSave(null);
+    } finally {
+      setIsLoading(false);
+    }
     // 预加载 NPC 姓名词库到内存，供后续同步取词
     void ensureNpcNamePoolLoaded();
   }, []);
