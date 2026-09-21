@@ -2,6 +2,7 @@
 // 六项硬门槛 / 竞争综合评分 / 政治生态规则 / 破格判定 / 洗白与协调
 import type { PlayerSave, FactionId, PoliticalWind } from '@/types/game';
 import { calcKFaction, getDominantFaction, getLosingFaction } from '@/lib/factionSystem';
+import { computeReputationScore } from '@/lib/reputationSystem';
 import {
   AGE_RANGES, AGE_BONUS, POPULAR_THRESHOLD, FAVOR_THRESHOLD,
   COMPETITION_WEIGHTS, BASE_TENURE, BREAK_RULE, ASSESS_ACCEL,
@@ -84,7 +85,7 @@ export function computeTenureAccel(save: PlayerSave): number {
   return 0;
 }
 
-/** 是否晋升冻结（含 §3.22 派系斗争交战期锁定） */
+/** 是否晋升冻结（含 §3.22 派系斗争交战期锁定 + 火线提拔 debuff） */
 export function isPromotionFrozen(save: PlayerSave): boolean {
   if (save.promotion_frozen) return true;
   // §4.2⑧ 派系斗争交战期：factionPromotionLocked=true → 一票否决
@@ -92,6 +93,8 @@ export function isPromotionFrozen(save: PlayerSave): boolean {
   // §2.5⑦ 无派系永久锁死
   if (save.factionlessLocked) return true;
   if (save.popularSupport <= FREEZE_RULES.popularEnd) return true;
+  // 火线提拔"根基不稳"：90 天内冻结
+  if ((save.firePromotionDebuffDays ?? 0) > 0) return true;
   return false;
 }
 
@@ -102,6 +105,8 @@ export function getFreezeReason(save: PlayerSave): string | null {
   // §4.2⑧ 派系斗争交战期：factionPromotionLocked=true → 一票否决
   if (save.factionPromotionLocked) return '派系斗争交战期：当前处于派系斗争交战期，晋升被锁定';
   if (save.promotion_frozen) return '晋升冻结：系统已冻结当前晋升通道';
+  // 火线提拔 debuff
+  if ((save.firePromotionDebuffDays ?? 0) > 0) return `根基不稳：火线提拔后 ${save.firePromotionDebuffDays} 天内晋升冻结`;
   if (save.popularSupport <= FREEZE_RULES.popularEnd) {
     return `民心不足：民心支持度 ${save.popularSupport} 低于冻结阈值 ${FREEZE_RULES.popularEnd}`;
   }
@@ -154,8 +159,10 @@ export function computePlayerScore(save: PlayerSave): number {
   score += computeAgeBonus(save.playerAge, tier);
   // 基层任期系数
   score *= computeBaseTenureFactor(save.base_tenure_years);
-  // 下次优先加分
-  score += save.next_priority_bonus;
+  // 下次优先加分（旧机制）+ 等待耐心积累加成
+  score += save.next_priority_bonus + (save.waitingState?.bonus ?? 0);
+  // 造势加成（窗口内成功率 +10%，按竞争评分折算）
+  if (save.momentumActive) score *= 1.1;
 
   // §4.2  K_faction 晋升派系系数（0.4–1.8，默认 1.0 即原行为）
   // factionlessLocked / factionPromotionLocked 已在 isPromotionFrozen 中一票否决，
@@ -178,6 +185,13 @@ export function computePlayerScore(save: PlayerSave): number {
   });
   // promotable=false 时得分归零（与 isPromotionFrozen 双重保险）
   if (!kResult.promotable) return 0;
+
+  // §5 政治声望加成：五维声望综合分（0-100）与基准 50 的差值，按 0.5 折算进竞争评分
+  if (save.reputation) {
+    const repScore = computeReputationScore(save.reputation, save.rankLevel);
+    score += (repScore - 50) * 0.5;
+  }
+
   return Math.round(score * kResult.kFaction * 10) / 10;
 }
 

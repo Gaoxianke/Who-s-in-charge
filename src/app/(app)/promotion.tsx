@@ -44,14 +44,18 @@ import { WIND_CYCLE_DAYS } from '@/lib/factionSystem';
 import { PositionBoard } from '@/components/PositionBoard';
 import { FactionAttackMap } from '@/components/promotion/FactionAttackMap';
 import { ConditionsTab } from '@/components/promotion/ConditionsTab';
+import { startRivalInvestigation, applyAnonymousLeak, applyCooptRival, type RivalProfile } from '@/lib/rivalSystem';
 import { RecordsTab } from '@/components/promotion/RecordsTab';
+import { buildTimingReport, applyMomentum, startWaiting, applyEmergencyPromotion } from '@/lib/promotionTimingSystem';
 
-type TabKey = 'factionAttack' | 'personalContest' | 'conditions' | 'records';
+type TabKey = 'factionAttack' | 'personalContest' | 'conditions' | 'records' | 'rivals' | 'timing';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'factionAttack', label: '派系攻夺战' },
   { key: 'personalContest', label: '个人争夺战' },
   { key: 'conditions', label: '晋升条件' },
   { key: 'records', label: '晋升记录' },
+  { key: 'rivals', label: '政敌' },
+  { key: 'timing', label: '时机' },
 ];
 
 // 顶栏背景图：古典建筑远景，贴合政务晋升主题，视觉中性
@@ -94,6 +98,7 @@ export default function PromotionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { save, updateGameSave, refreshSave } = useGame();
+  type SaveRival = PlayerSave['rivals'][number];
   const [tab, setTab] = useState<TabKey>('personalContest');
   const [boardVisible, setBoardVisible] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -231,6 +236,83 @@ export default function PromotionScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ── 政敌反制 ──────────────────────────────
+  const handleInvestigate = async (r: SaveRival) => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = startRivalInvestigation(r as unknown as RivalProfile, save.gameDays);
+      if (!res.ok) { showFeedback(res.msg, false); return; }
+      const next = (save.rivals ?? []).map(x => x.id === r.id ? { ...x, investigation: res.investigation } : x);
+      await updateGameSave({ silver: (save.silver ?? 0) - 50, rivals: next });
+      showFeedback(`🔍 已启动对 ${r.name} 的调查（30天后出结果）`, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
+  };
+  const handleLeak = async (r: SaveRival) => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = applyAnonymousLeak(r as unknown as RivalProfile, save.gameDays);
+      if (!res.ok) { showFeedback(res.msg, false); return; }
+      const next = (save.rivals ?? []).map(x => x.id === r.id ? { ...x, hasLeverage: false, leverageDetail: null, status: 'defeated' } : x);
+      await updateGameSave({ rivals: next });
+      showFeedback(`📰 匿名爆料成功：${res.msg}`, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
+  };
+  const handleCoopt = async (r: SaveRival) => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = applyCooptRival(r as unknown as RivalProfile);
+      if (!res.ok) { showFeedback(res.msg, false); return; }
+      const next = (save.rivals ?? []).map(x => x.id === r.id ? { ...x, status: 'recruited' } : x);
+      await updateGameSave({
+        factionContribution: (save.factionContribution ?? 0) - 200,
+        silver: (save.silver ?? 0) - 100,
+        rivals: next,
+      });
+      showFeedback(`🤝 收编成功：${r.name} 已转为你的政治盟友`, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
+  };
+
+  // ── 晋升时机主动创造 ────────────────────────
+  const handleMomentum = async () => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = applyMomentum(save);
+      if (!res.ok) { showFeedback(res.msg, false); return; }
+      await updateGameSave(res.updates);
+      showFeedback(res.msg, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
+  };
+  const handleWait = async () => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      if (save.waitingState) { showFeedback('已在等待中', false); return; }
+      const { waitingState, meritPenalty } = startWaiting(save, save.gameDays);
+      await updateGameSave({ waitingState, meritPoints: Math.max(0, (save.meritPoints ?? 0) - meritPenalty) });
+      showFeedback(`⏳ 放弃本窗口，开始积累耐心（功绩 -${meritPenalty}）`, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
+  };
+  const handleEmergency = async () => {
+    if (!save || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = applyEmergencyPromotion(save);
+      if (!res.ok) { showFeedback(res.msg, false); return; }
+      await updateGameSave(res.updates);
+      showFeedback(res.msg, true);
+      await refreshSave();
+    } finally { setSubmitting(false); }
   };
 
   // 目标职位列表（useMemo 避免重复过滤）
@@ -646,6 +728,108 @@ export default function PromotionScreen() {
       ) : null}
       {tab === 'conditions' ? <ConditionsTab gate={gate} /> : null}
       {tab === 'records' ? <RecordsTab /> : null}
+      {tab === 'rivals' ? (
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {(save.rivals ?? []).length === 0 ? (
+            <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#D9D9D9', padding: 12 }}>
+              <Text style={{ fontSize: 12, color: '#999' }}>暂无政敌 · 月度结算后按职级段自动生成</Text>
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {(save.rivals ?? []).map((r) => (
+                <View key={r.id} style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#D9D9D9', padding: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#1D3B5E' }}>{r.name}</Text>
+                    <View style={{ backgroundColor: r.isSameFactionRival ? '#FFF8E1' : '#FFEBEE', borderWidth: 1, borderColor: r.isSameFactionRival ? '#E0C97A' : '#E8B4B4', paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 10, color: r.isSameFactionRival ? '#8A6D1A' : '#C62828', fontWeight: '600' }}>{r.isSameFactionRival ? '同派竞争者' : '跨派打压者'}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#666', lineHeight: 17, marginBottom: 8 }}>{r.examReport}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                    <StatusBadge label={`势力 ${r.power}`} color="#666" />
+                    <StatusBadge label={`评分 ${r.meritScore}`} color="#666" />
+                    <StatusBadge label={`关系 ${r.favor}`} color={r.favor < 0 ? '#C62828' : '#2E7D32'} />
+                    {r.hasLeverage ? <StatusBadge label="已掌握把柄" color="#C62829" /> : null}
+                    {r.investigation && r.investigation.success === null ? <StatusBadge label={`调查中（${r.investigation.endsDay - save.gameDays}天）`} color="#8A6D1A" /> : null}
+                  </View>
+                  {/* 反制行动 */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {r.status === 'active' && (!r.investigation || r.investigation.success !== null) ? (
+                      <Pressable onPress={() => handleInvestigate(r)} style={{ backgroundColor: '#1D3B5E', paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>🔍 调查（50万/30天）</Text>
+                      </Pressable>
+                    ) : null}
+                    {r.hasLeverage ? (
+                      <Pressable onPress={() => handleLeak(r)} style={{ backgroundColor: '#C62829', paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>📰 匿名爆料</Text>
+                      </Pressable>
+                    ) : null}
+                    {r.status === 'active' && r.meritScore < (save.meritPoints ?? 0) * 0.8 ? (
+                      <Pressable onPress={() => handleCoopt(r)} style={{ backgroundColor: '#2E7D32', paddingHorizontal: 10, paddingVertical: 5 }}>
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>🤝 收编（200贡献+100万）</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      ) : null}
+      {tab === 'timing' ? (
+        <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {(() => {
+            const report = buildTimingReport(save, save.gameDays, save.momentumActive ?? false);
+            return (
+              <View style={{ gap: 10 }}>
+                {/* 窗口状态 */}
+                <View style={{ backgroundColor: report.isWindowOpen ? '#F0FAF0' : '#F5F4F1', borderWidth: 1, borderColor: report.isWindowOpen ? '#A5D6A7' : '#D9D9D9', padding: 12 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: report.isWindowOpen ? '#2E7D32' : '#666', marginBottom: 6 }}>
+                    {report.isWindowOpen ? `🟢 ${report.windowLabel} 进行中` : `⏳ 距${report.windowLabel} 还有 ${report.daysToWindow} 天`}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#666', lineHeight: 17 }}>
+                    晋升时机评分：<Text style={{ fontWeight: '700', color: report.score >= 50 ? '#2E7D32' : '#C62828' }}>{report.score} 分</Text> · {report.scoreLabel}
+                    {report.momentum ? ' · 已造势（+10%）' : ''}
+                    {save.waitingState ? ` · 等待中（+${save.waitingState.bonus}）` : ''}
+                  </Text>
+                </View>
+                {/* 环境因子 */}
+                {report.factors.length > 0 ? (
+                  <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#D9D9D9', padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D3B5E', marginBottom: 8 }}>外部环境因子</Text>
+                    {report.factors.map((f, i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
+                        <Text style={{ fontSize: 11, color: '#555' }}>{f.label}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: f.delta > 0 ? '#2E7D32' : f.delta < 0 ? '#C62828' : '#666' }}>{f.delta > 0 ? '+' : ''}{f.delta}%</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                {/* 主动创造时机 */}
+                <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#D9D9D9', padding: 12, gap: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D3B5E', marginBottom: 2 }}>主动创造时机</Text>
+                  <Pressable onPress={handleMomentum} style={{ backgroundColor: save.momentumActive ? '#E8E8E8' : '#1D3B5E', paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Text style={{ color: save.momentumActive ? '#999' : '#fff', fontSize: 11, fontWeight: '600' }}>
+                      {save.momentumActive ? '✅ 已造势（当前窗口生效）' : '🔊 舆论造势（消耗 50 万 + 100 声望）'}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={handleWait} style={{ backgroundColor: save.waitingState ? '#E8E8E8' : '#8A6D1A', paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Text style={{ color: save.waitingState ? '#999' : '#fff', fontSize: 11, fontWeight: '600' }}>
+                      {save.waitingState ? `⏳ 等待中（已积累 ${save.waitingState.accumulatedDays} 天）` : '🕐 放弃本窗口 · 积累耐心（功绩-5%，下次评分+5）'}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={handleEmergency} style={{ backgroundColor: '#C62829', paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>🔥 火线提拔（跳过窗口，获 90 天冻结）</Text>
+                  </Pressable>
+                  {save.firePromotionDebuffDays && save.firePromotionDebuffDays > 0 ? (
+                    <Text style={{ fontSize: 10, color: '#C62828' }}>⚠️ 根基不稳：剩余 {save.firePromotionDebuffDays} 天冻结</Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })()}
+        </ScrollView>
+      ) : null}
 
       {/* 位置棋盘弹窗 */}
       <PositionBoard
@@ -654,6 +838,14 @@ export default function PromotionScreen() {
         save={save}
         targetSeatKey={contest?.positionKey ?? null}
       />
+    </View>
+  );
+}
+
+function StatusBadge({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={{ backgroundColor: color + '14', borderWidth: 1, borderColor: color + '44', paddingHorizontal: 6, paddingVertical: 2 }}>
+      <Text style={{ fontSize: 9, color, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }

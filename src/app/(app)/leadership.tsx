@@ -24,6 +24,7 @@ import type {
 import { DemocraticReview } from '@/components/DemocraticReview';
 import { getRankTheme } from '@/lib/rankTheme';
 import { calcBandSynergy } from '@/lib/factionSystem';
+import { RELATION_ACTIONS } from '@/lib/bossRelationSystem';
 
 type MainTab = 'npc' | 'appoint' | 'career' | 'city' | 'policy';
 type BandGroupTab = 'party' | 'gov' | 'nda';
@@ -392,6 +393,46 @@ export default function LeadershipScreen() {
     setTimeout(() => setFeedback(''), 2500);
   };
 
+  // ── 上司关系维护（关系网 v1.0：好感交换行动）──
+  const handleBossAction = async (bossId: string, actionId: string) => {
+    if (!save || !save.bossProfiles) return;
+    const action = RELATION_ACTIONS.find(a => a.id === actionId);
+    if (!action) return;
+    const boss = save.bossProfiles.find(b => b.id === bossId);
+    if (!boss) return;
+
+    // 资源校验：政绩 / 资金 / 人脉声望
+    const needMerit = action.cost.merit ?? 0;
+    const needFund = action.cost.fund ?? 0;
+    const needNetwork = action.cost.network ?? 0;
+    if (save.meritPoints < needMerit) { showFeedback(`❌ 政绩不足：需要 ${needMerit} 政绩`); return; }
+    if ((save.fundBalance ?? 0) < needFund) { showFeedback(`❌ 资金不足：需要 ¥${needFund}`); return; }
+    if ((save.reputation?.network ?? 0) < needNetwork) { showFeedback(`❌ 人脉声望不足：需要 ${needNetwork}`); return; }
+
+    // 执行：好感变化 + 扣资源 + 风险累计 + 声望联动
+    const newFavor = Math.max(0, Math.min(100, (boss.favor ?? 50) + (action.effect.favorDelta ?? 0)));
+    const newProfiles = save.bossProfiles.map(b => b.id === bossId ? { ...b, favor: newFavor } : b);
+    const nextUpdates: Parameters<typeof updateGameSave>[0] = {
+      bossProfiles: newProfiles,
+      meritPoints: Math.max(0, save.meritPoints - needMerit),
+      fundBalance: Math.max(0, (save.fundBalance ?? 0) - needFund),
+      riskValue: Math.max(0, (save.riskValue ?? 0) + (action.effect.riskValue ?? 0)),
+    };
+    // 声望联动（如"政绩捆绑"涨政绩声望、"情报交换"涨人脉声望）
+    if (save.reputation && action.effect.reputationDelta) {
+      const rd = action.effect.reputationDelta;
+      nextUpdates.reputation = {
+        merit: Math.max(0, Math.min(100, save.reputation.merit + (rd.merit ?? 0))),
+        network: Math.max(0, Math.min(100, save.reputation.network + (rd.network ?? 0))),
+        integrity: Math.max(0, Math.min(100, save.reputation.integrity + (rd.integrity ?? 0))),
+        publicity: Math.max(0, Math.min(100, save.reputation.publicity + (rd.publicity ?? 0))),
+        faction: Math.max(0, Math.min(100, save.reputation.faction + (rd.faction ?? 0))),
+      };
+    }
+    await updateGameSave(nextUpdates);
+    showFeedback(`🤝 ${action.label}：${boss.name} 好感 ${boss.favor} → ${newFavor}${action.effect.riskValue ? `，风险 +${action.effect.riskValue}` : ''}`);
+  };
+
   // ── 人事任命逻辑 ──
   const handleAssign = async (sub: Subordinate) => {
     if (!save || !selectingRole) return;
@@ -677,6 +718,104 @@ export default function LeadershipScreen() {
                     {save.patronage ? <EcoChip text="🛡️ 庇护状态" color="#1A3A4A" /> : null}
                   </View>
                 </View>
+                {/* 政治声望（五维）——双刃剑：高则增益，过高则触发负面事件 */}
+                <View style={{ backgroundColor: theme.quickStatBg, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, padding: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primaryText, letterSpacing: 1, marginBottom: 8 }}>
+                    政治声望
+                    {save.reputation ? (
+                      <Text style={{ fontSize: 9, fontWeight: '400', color: theme.mutedText }}>
+                        {' '}· 均衡发展可获得晋升加成，单维过高易招致反噬
+                      </Text>
+                    ) : null}
+                  </Text>
+                  {save.reputation ? (
+                    <View style={{ gap: 5 }}>
+                      {([
+                        ['政绩声望', save.reputation.merit, '能干事'],
+                        ['人脉声望', save.reputation.network, '会来事'],
+                        ['廉洁声望', save.reputation.integrity, '靠得住'],
+                        ['舆论声望', save.reputation.publicity, '有名气'],
+                        ['派系声望', save.reputation.faction, '有根基'],
+                      ] as const).map(([label, val, tag]) => (
+                        <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={{ width: 58, fontSize: 10, color: theme.mutedText }}>{label}</Text>
+                          <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: theme.cardBg, overflow: 'hidden' }}>
+                            <View style={{ height: 8, borderRadius: 4, backgroundColor: (val as number) >= 80 ? '#C82829' : (val as number) >= 40 ? '#2a7a3b' : '#e67e22', width: `${Math.max(4, Math.min(100, val as number))}%` }} />
+                          </View>
+                          <Text style={{ width: 26, fontSize: 11, fontWeight: '800', color: theme.primaryText, textAlign: 'right' }}>{val}</Text>
+                          <Text style={{ width: 42, fontSize: 9, color: theme.mutedText }}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 10, color: theme.mutedText }}>晋升系统 v3 起启用政治声望，新存档将自动初始化。</Text>
+                  )}
+                </View>
+                {/* 上司档案（关系网 v1.0）：立场 / 诉求 / 困境 / 关系维护 */}
+                {save.bossProfiles && save.bossProfiles.length > 0 ? (
+                  <View style={{ backgroundColor: theme.quickStatBg, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, padding: 12 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: theme.primaryText, letterSpacing: 1, marginBottom: 8 }}>上司档案 · 关系维护</Text>
+                    <View style={{ gap: 7 }}>
+                      {save.bossProfiles.map((b) => (
+                        <View key={b.id} style={{ gap: 6 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.cardBg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '800', color: theme.primaryText }}>{b.name}</Text>
+                            <Text style={{ flex: 1, fontSize: 10, color: theme.mutedText }} numberOfLines={1}>{b.title}</Text>
+                            <Text style={{ fontSize: 9, color: '#7A5B1E', backgroundColor: '#F5EEDC', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                              {b.stance === 'reform' ? '改革派' : b.stance === 'conservative' ? '稳健派' : '中立'}
+                            </Text>
+                            <Text style={{ fontSize: 9, color: '#1A3A4A', backgroundColor: '#E8F0F5', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 }}>
+                              {b.aspiration === 'promotion' ? '求升迁' : b.aspiration === 'safe_retirement' ? '求平安' : b.aspiration === 'faction_expansion' ? '求扩张' : '求财富'}
+                            </Text>
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: (b.favor as number) >= 70 ? '#2a7a3b' : (b.favor as number) >= 40 ? '#e67e22' : '#C82829' }}>
+                              好感{b.favor}
+                            </Text>
+                          </View>
+                          {/* 关系维护行动（紧凑横向滚动） */}
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, paddingHorizontal: 2 }}>
+                            {RELATION_ACTIONS.map((act) => {
+                              const needMerit = act.cost.merit ?? 0;
+                              const needFund = act.cost.fund ?? 0;
+                              const needNet = act.cost.network ?? 0;
+                              const affordable =
+                                (save.meritPoints >= needMerit) &&
+                                ((save.fundBalance ?? 0) >= needFund) &&
+                                ((save.reputation?.network ?? 0) >= needNet);
+                              return (
+                                <Pressable
+                                  key={act.id}
+                                  disabled={!affordable}
+                                  onPress={() => handleBossAction(b.id, act.id)}
+                                  style={({ pressed }) => ({
+                                    backgroundColor: affordable ? '#E8F0F5' : '#EFEFEF',
+                                    borderWidth: 1,
+                                    borderColor: affordable ? '#AAB8CC' : '#DDD',
+                                    borderRadius: 6,
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    opacity: affordable ? (pressed ? 0.6 : 1) : 0.6,
+                                  })}
+                                >
+                                  <Text style={{ fontSize: 9, fontWeight: '700', color: affordable ? '#1A3A4A' : '#999' }}>{act.label}</Text>
+                                  <Text style={{ fontSize: 8, color: affordable ? '#557' : '#BBB' }}>
+                                    {[needMerit ? `政绩${needMerit}` : '', needFund ? `¥${needFund}` : '', needNet ? `人脉${needNet}` : '', `+${act.effect.favorDelta}好感`].filter(Boolean).join(' ')}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                    {save.bossProfiles.some((b) => b.personalDilemma) ? (
+                      <View style={{ marginTop: 6, gap: 4 }}>
+                        {save.bossProfiles.map((b) => b.personalDilemma ? (
+                          <Text key={b.id} style={{ fontSize: 9, color: '#C07020' }}>💼 {b.name}的困境：{b.personalDilemma}{b.dilemmaResolved ? '（已解决）' : ''}</Text>
+                        ) : null)}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
                 {/* 班子合力（§3.4 / §4.3） */}
                 <View style={{ backgroundColor: theme.quickStatBg, borderBottomWidth: 1, borderBottomColor: theme.cardBorder, padding: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

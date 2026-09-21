@@ -23,6 +23,16 @@ import {
   WIND_CYCLE_DAYS,
 } from '@/lib/factionSystem';
 import { buildBoard, computeFactionControl, controlsHub } from '@/lib/positionBoard';
+import { initPowerPerception, updatePowerPerception } from '@/lib/promotionPowerPerception';
+import { initCeremony } from '@/lib/promotionCeremonySystem';
+
+// ── v1.0 政治声望 + 上司关系网：晋升新门槛常量 ──
+/** 声望均衡门槛：晋升要求五维最低 ≥ 该值（声望失衡不得晋升） */
+export const REPUTATION_GATE_MIN = 40;
+/** 副厅级+（rank≥7）声望根基门槛：任一维度 ≥ 该值 */
+export const REPUTATION_SENIOR_GATE = 60;
+/** 上司推荐制：好感达到该值视为"愿意推荐" */
+export const BOSS_RECOMMEND_FAVOR = 60;
 import { resolvePersonalContest } from '@/lib/provinceSeatSystem';
 
 // ── 配置常量（统一出口，不硬编码在业务函数内）────────────────────
@@ -176,6 +186,12 @@ export function applyContestWin(
     // #6 派系贡献累计：赢下个人争夺 +150
     factionContribution: (save.factionContribution ?? 0) + 150,
     positionOccupancy:   occupancy,
+    // ── v1.0 权力交接仪式：晋升胜利时启动五步流程 ──
+    ceremonyState: initCeremony(save, newRank, day),
+    // ── 晋升后权力感知系统 v1.0：首次晋升初始化，后续跨档更新 ──
+    powerPerceptionState: save.powerPerceptionState
+      ? updatePowerPerception(save.powerPerceptionState, newRank, day).updated
+      : initPowerPerception(newRank, day),
   };
 }
 
@@ -473,6 +489,45 @@ export function getUnifiedGateDetails(
     current: save.gameDays <= (save.factionSetbackUntilDay ?? 0) ? '冻结中' : '正常',
     required: cond.requireNoSetback ? '无冻结' : '不限',
   });
+
+  // ── v1.0 政治声望系统：五维声望均衡门槛（最低维度 ≥ 40，声望失衡不得晋升）──
+  if (save.reputation) {
+    const repValues = Object.values(save.reputation);
+    const minRep = Math.min(...repValues);
+    details.push({
+      key: 'reputation',
+      label: '政治声望均衡',
+      pass: minRep >= REPUTATION_GATE_MIN,
+      current: `最低维度 ${Math.round(minRep)}`,
+      required: `各维度 ≥ ${REPUTATION_GATE_MIN}`,
+    });
+  }
+
+  // ── v1.0 政治声望系统：高级职位门槛——副厅级（rank≥7）晋升需任一声望维度 ≥ 60 ──
+  // 白皮书：某些高级职位要求特定声望维度≥60（如副厅级以上重"人脉/派系"根基）
+  if (save.reputation && nextRank >= 7) {
+    const repValues = Object.values(save.reputation);
+    const maxRep = Math.max(...repValues);
+    details.push({
+      key: 'reputationSenior',
+      label: '声望根基（副厅级+）',
+      pass: maxRep >= REPUTATION_SENIOR_GATE,
+      current: `最高维度 ${Math.round(maxRep)}`,
+      required: `任一维度 ≥ ${REPUTATION_SENIOR_GATE}`,
+    });
+  }
+
+  // ── v1.0 上司关系网：推荐制（好感 ≥ 60 视为愿意推荐，需 ≥ 2 位）──
+  if (save.bossProfiles && save.bossProfiles.length > 0) {
+    const recCount = save.bossProfiles.filter(b => (b.favor ?? 0) >= BOSS_RECOMMEND_FAVOR).length;
+    details.push({
+      key: 'recommend',
+      label: '上司推荐',
+      pass: recCount >= 2,
+      current: `${recCount}/2 位`,
+      required: '≥2 位上司推荐',
+    });
+  }
 
   return details;
 }

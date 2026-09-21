@@ -9,7 +9,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useGame } from '@/ctx/GameContext';
 import { getAllSubordinates } from '@/db/gameApi';
 import type { Subordinate } from '@/types/game';
-import { formatMoney, estimateNationalGdp } from '@/types/game';
+import { formatMoney, formatFund, estimateNationalGdp } from '@/types/game';
 import { getHotlineTargets } from '@/lib/leaders';
 
 // 副院理分管板块（三块）

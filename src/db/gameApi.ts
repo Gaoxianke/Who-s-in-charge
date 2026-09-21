@@ -238,6 +238,70 @@ function rowToPlayerSave(row: Record<string, unknown>): PlayerSave {
     patron_fail_months: Number(row.patron_fail_months) ?? 0,
     // Game Over
     gameOverType: (row.game_over_type as PlayerSave['gameOverType']) ?? null,
+    // v3 晋升系统新字段
+    prestigeStage: Number(row.prestige_stage) ?? 0,
+    cliqueExposed: Boolean(row.clique_exposed) ?? false,
+    obstructionMonths: Number(row.obstruction_months) ?? 0,
+    patronExtendedCount: Number(row.patron_extended_count) ?? 0,
+    rivalAmbushCount: Number(row.rival_ambush_count) ?? 0,
+    meritLocked: Number(row.merit_locked) ?? 0,
+    breakTagCount: Number(row.break_tag_count) ?? 0,
+    factionRank: Number(row.faction_rank) ?? 0,
+    factionSwitches: Number(row.faction_switches) ?? 0,
+    turncoatTag: Boolean(row.turncoat_tag) ?? false,
+    lastPromotionCeremonyDay: Number(row.last_promotion_ceremony_day) ?? 0,
+    promotionSnapshot: (row.promotion_snapshot as Record<string, unknown>) ?? {},
+    promotionSystemVersion: Number(row.promotion_system_version) ?? 2,
+    // v1.0 政治声望系统
+    reputation: (row.reputation as PlayerSave['reputation']) ?? { merit: 50, network: 45, integrity: 50, publicity: 40, faction: 45 },
+    // v1.0 上司关系网系统
+    bossProfiles: ((row.boss_profiles as Record<string, unknown>[]) ?? []).map(b => ({
+      id: String(b.id ?? ''),
+      name: String(b.name ?? ''),
+      title: String(b.title ?? ''),
+      stance: (b.stance as 'reform' | 'conservative' | 'neutral') ?? 'neutral',
+      aspiration: (b.aspiration as 'promotion' | 'safe_retirement' | 'faction_expansion' | 'wealth' | 'legacy') ?? 'promotion',
+      favor: Number(b.favor) ?? 55,
+      loyalty: Number(b.loyalty) ?? 60,
+      power: Number(b.power) ?? 60,
+      personalDilemma: (b.personalDilemma as string | null) ?? (b.personal_dilemma as string | null) ?? null,
+      dilemmaResolved: Boolean(b.dilemmaResolved ?? b.dilemma_resolved ?? false),
+      lastActiveDay: Number(b.lastActiveDay ?? b.last_active_day ?? 0),
+    })),
+    // v1.0 政敌系统
+    rivals: ((row.rivals as Record<string, unknown>[]) ?? []).map(r => ({
+      id: String(r.id ?? ''),
+      name: String(r.name ?? ''),
+      faction: String(r.faction ?? 'neutral'),
+      isSameFactionRival: Boolean(r.isSameFactionRival ?? r.is_same_faction_rival ?? false),
+      meritScore: Number(r.meritScore ?? r.merit_score ?? 50),
+      power: Number(r.power ?? 50),
+      favor: Number(r.favor ?? -30),
+      hasLeverage: Boolean(r.hasLeverage ?? r.has_leverage ?? false),
+      leverageDetail: (r.leverageDetail as string | null) ?? (r.leverage_detail as string | null) ?? null,
+      status: String(r.status ?? 'active'),
+      lastActionDay: Number(r.lastActionDay ?? r.last_action_day ?? 0),
+      grudgeOrigin: String(r.grudgeOrigin ?? r.grudge_origin ?? ''),
+      motto: String(r.motto ?? ''),
+      investigation: (r.investigation as { startedDay: number; endsDay: number; success: boolean | null } | null) ?? null,
+      revengeOfId: (r.revengeOfId as string | null) ?? (r.revenge_of_id as string | null) ?? null,
+      examReport: String(r.examReport ?? r.exam_report ?? ''),
+    })),
+    // v1.0 晋升时机系统
+    momentumActive: Boolean(row.momentum_active ?? false),
+    waitingState: (row.waiting_state as PlayerSave['waitingState']) ?? null,
+    lastWindowWaivedDay: Number(row.last_window_waived_day ?? 0),
+    firePromotionDebuffDays: Number(row.fire_promotion_debuff_days ?? 0),
+    // v1.0 权力交接仪式系统
+    ceremonyState: (row.ceremony_state as PlayerSave['ceremonyState']) ?? null,
+    // v2.0 破格晋升系统
+    breakPromotionFlow: (row.break_promotion_flow as PlayerSave['breakPromotionFlow']) ?? null,
+    breakPromotionTag: (row.break_promotion_tag as PlayerSave['breakPromotionTag']) ?? null,
+    breakFailureTag: (row.break_failure_tag as PlayerSave['breakFailureTag']) ?? null,
+    // v1.0 失败后软着陆系统
+    softLandingState: (row.soft_landing_state as PlayerSave['softLandingState']) ?? null,
+    // v1.0 晋升后权力感知系统
+    powerPerceptionState: (row.power_perception_state as PlayerSave['powerPerceptionState']) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -501,6 +565,54 @@ export async function createSave(): Promise<PlayerSave | null> {
       connections: 0,
       city_tax_rate: 0.12,
       city_tax_income: 0,
+
+      // ── 晋升系统 v3 新字段 ──
+      prestige_stage: 0,
+      clique_exposed: false,
+      obstruction_months: 0,
+      patron_extended_count: 0,
+      rival_ambush_count: 0,
+      merit_locked: 0,
+      break_tag_count: 0,
+      faction_rank: 0,
+      faction_switches: 0,
+      turncoat_tag: false,
+      last_promotion_ceremony_day: 0,
+      promotion_snapshot: {},
+      promotion_system_version: 3,
+
+      // ── 政治声望系统 v1.0 ──
+      reputation: { merit: 50, network: 45, integrity: 50, publicity: 40, faction: 45 },
+
+      // ── 上司关系网系统 v1.0 ──
+      boss_profiles: [
+        { id: 'boss_1', name: '王建国', title: config.bossTitle, stance: 'reform', aspiration: 'promotion', favor: 55, loyalty: 60, power: 70, personal_dilemma: null, dilemma_resolved: false, last_active_day: 0 },
+        { id: 'boss_2', name: '李明华', title: config.bossTitle2, stance: 'conservative', aspiration: 'safe_retirement', favor: 55, loyalty: 60, power: 60, personal_dilemma: null, dilemma_resolved: false, last_active_day: 0 },
+        { id: 'boss_3', name: '张伟强', title: config.bossTitle3, stance: 'neutral', aspiration: 'faction_expansion', favor: 55, loyalty: 60, power: 50, personal_dilemma: null, dilemma_resolved: false, last_active_day: 0 },
+      ],
+
+      // ── 政敌系统 v1.0（初始无政敌，首次月度结算时按职级段生成）──
+      rivals: [],
+
+      // ── 晋升时机系统 v1.0 ──
+      momentum_active: false,
+      waiting_state: null,
+      last_window_waived_day: 0,
+      fire_promotion_debuff_days: 0,
+
+      // ── 权力交接仪式系统 v1.0 ──
+      ceremony_state: null,
+
+      // ── 破格晋升系统 v2.0 ──
+      break_promotion_flow: null,
+      break_promotion_tag: null,
+      break_failure_tag: null,
+
+      // ── 失败后软着陆系统 v1.0 ──
+      soft_landing_state: null,
+
+      // ── 晋升后权力感知系统 v1.0（初始 null，首次晋升胜利时初始化）──
+      power_perception_state: null,
     })
     .select('*')
     .single();
@@ -834,7 +946,27 @@ export async function updateSave(saveId: string, updates: Partial<{
   lastTenureAssessDay: number;
   demotionCooldownUntil: number;
   lastTransferDay: number;
-}>): Promise<PlayerSave | null> {
+  // ── v1.0 政治声望系统 + 上司关系网系统 ──
+  reputation: PlayerSave['reputation'];
+  bossProfiles: PlayerSave['bossProfiles'];
+  // ── v1.0 政敌系统 + 晋升时机系统 ──
+  rivals: PlayerSave['rivals'];
+  momentumActive: boolean;
+  waitingState: PlayerSave['waitingState'];
+  lastWindowWaivedDay: number;
+  firePromotionDebuffDays: number;
+  // ── v1.0 权力交接仪式系统 ──
+  ceremonyState: PlayerSave['ceremonyState'];
+  // ── v2.0 破格晋升系统 ──
+  breakPromotionFlow: PlayerSave['breakPromotionFlow'];
+  breakPromotionTag: PlayerSave['breakPromotionTag'];
+  breakFailureTag: PlayerSave['breakFailureTag'];
+  // ── v1.0 失败后软着陆系统 ──
+  softLandingState: PlayerSave['softLandingState'];
+  // ── 晋升后权力感知系统 v1.0 ──
+  powerPerceptionState: PlayerSave['powerPerceptionState'];
+}>
+): Promise<PlayerSave | null> {
   const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   if (updates.meritPoints !== undefined) dbUpdates.merit_points = Math.round(updates.meritPoints);
@@ -1050,6 +1182,25 @@ export async function updateSave(saveId: string, updates: Partial<{
   if (updates.rooting_days !== undefined) dbUpdates.rooting_days = updates.rooting_days;
   if (updates.promo_freeze_until_day !== undefined) dbUpdates.promo_freeze_until_day = updates.promo_freeze_until_day;
   if (updates.patron_fail_months !== undefined) dbUpdates.patron_fail_months = updates.patron_fail_months;
+  // ── v1.0 政治声望系统 + 上司关系网系统 写入映射 ──
+  if (updates.reputation !== undefined) dbUpdates.reputation = updates.reputation;
+  if (updates.bossProfiles !== undefined) dbUpdates.boss_profiles = updates.bossProfiles;
+  // ── v1.0 政敌系统 + 晋升时机系统 写入映射 ──
+  if (updates.rivals !== undefined) dbUpdates.rivals = updates.rivals;
+  if (updates.momentumActive !== undefined) dbUpdates.momentum_active = updates.momentumActive;
+  if (updates.waitingState !== undefined) dbUpdates.waiting_state = updates.waitingState;
+  if (updates.lastWindowWaivedDay !== undefined) dbUpdates.last_window_waived_day = Math.round(updates.lastWindowWaivedDay);
+  if (updates.firePromotionDebuffDays !== undefined) dbUpdates.fire_promotion_debuff_days = Math.round(updates.firePromotionDebuffDays);
+  // ── v1.0 权力交接仪式系统 写入映射 ──
+  if (updates.ceremonyState !== undefined) dbUpdates.ceremony_state = updates.ceremonyState;
+  // ── v2.0 破格晋升系统 写入映射 ──
+  if (updates.breakPromotionFlow !== undefined) dbUpdates.break_promotion_flow = updates.breakPromotionFlow;
+  if (updates.breakPromotionTag !== undefined) dbUpdates.break_promotion_tag = updates.breakPromotionTag;
+  if (updates.breakFailureTag !== undefined) dbUpdates.break_failure_tag = updates.breakFailureTag;
+  // ── v1.0 失败后软着陆系统 写入映射 ──
+  if (updates.softLandingState !== undefined) dbUpdates.soft_landing_state = updates.softLandingState;
+  // ── 晋升后权力感知系统 v1.0 写入映射 ──
+  if (updates.powerPerceptionState !== undefined) dbUpdates.power_perception_state = updates.powerPerceptionState;
 
   const { data, error } = await supabase
     .from('player_saves')

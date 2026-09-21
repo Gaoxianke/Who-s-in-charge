@@ -2054,6 +2054,84 @@ export interface PlayerSave {
   avatarId: number;
   school: string;
   needsCharacterCreation: boolean;
+
+  // ── 政治生态事件状态（v3）──
+  prestigeStage: number;
+  cliqueExposed: boolean;
+  obstructionMonths: number;
+  patronExtendedCount: number;
+  rivalAmbushCount: number;
+
+  // ── 破格晋升新机制（v3）──
+  meritLocked: number;
+  breakTagCount: number;
+
+  // ── 派系耦合（v3）──
+  factionRank: number;
+  factionSwitches: number;
+  turncoatTag: boolean;
+
+  // ── 晋升仪式（v3）──
+  lastPromotionCeremonyDay: number;
+  promotionSnapshot: Record<string, unknown>;
+
+  // ── 版本标记（v3）──
+  promotionSystemVersion: number;
+
+  // ── 政治声望系统 v1.0 ──
+  reputation: {
+    merit: number;
+    network: number;
+    integrity: number;
+    publicity: number;
+    faction: number;
+  };
+
+  // ── 上司关系网系统 v1.0 ──
+  bossProfiles: Array<{
+    id: string;
+    name: string;
+    title: string;
+    stance: string;
+    aspiration: string;
+    favor: number;
+    loyalty: number;
+    power: number;
+    personalDilemma: string | null;
+    dilemmaResolved: boolean;
+    lastActiveDay: number;
+  }>;
+
+  // ── 政敌系统 v1.0 ──
+  rivals: Array<{
+    id: string;
+    name: string;
+    faction: string;
+    isSameFactionRival: boolean;
+    meritScore: number;
+    power: number;
+    favor: number;
+    hasLeverage: boolean;
+    leverageDetail: string | null;
+    status: string;
+    lastActionDay: number;
+    grudgeOrigin: string;
+    motto: string;
+    investigation: { startedDay: number; endsDay: number; success: boolean | null } | null;
+    revengeOfId: string | null;
+    examReport: string;
+  }>;
+
+  // ── 晋升时机系统 v1.0 ──
+  momentumActive: boolean;      // 是否已造势（窗口内成功率+10%）
+  waitingState: {
+    startedDay: number;
+    accumulatedDays: number;
+    bonus: number;
+  } | null;
+  lastWindowWaivedDay: number;  // 上次主动放弃窗口的天数
+  firePromotionDebuffDays: number; // 火线提拔"根基不稳"剩余冻结天数
+
   // 个人档案
   birthYear: number;
   birthProvince: string;
@@ -2351,6 +2429,104 @@ export interface PlayerSave {
   demotionCooldownUntil: number;
   /** 上次调任/平调日（调任冷却） */
   lastTransferDay: number;
+
+  // ── 权力交接仪式系统 v1.0 ──
+  /** 当前晋升仪式状态（null = 无进行中仪式） */
+  ceremonyState: {
+    phase: 'talk' | 'publicity' | 'announce' | 'handover' | 'speech' | 'complete';
+    startedDay: number;
+    targetRank: number;
+    talkDone: boolean;
+    publicityDone: boolean;
+    publicityReported: boolean;
+    announceDone: boolean;
+    handoverDone: boolean;
+    predecessorAttitude: 'friendly' | 'neutral' | 'hostile';
+    subordinateStances: Record<string, 'loyal' | 'waitsee' | 'leave'>;
+    speechDone: boolean;
+    speechType?: 'pragmatic' | 'reform' | 'steady';
+    isBigPromotion: boolean;
+    tierFrom: number;
+    tierTo: number;
+  } | null;
+
+  // ── 破格晋升系统 v2.0 ──
+  /** 破格晋升全流程状态 */
+  breakPromotionFlow: {
+    nomination: {
+      qualified: boolean;
+      source: 'emergency' | 'national_award' | 'faction_boss' | 'patron_push' | null;
+      qualifiedDay: number;
+      expiryDay: number;
+      applied: boolean;
+      applicationStyle: 'merit' | 'network' | 'faction' | null;
+    };
+    review: {
+      reviewers: Array<{
+        id: string;
+        name: string;
+        faction: string;
+        preference: 'merit' | 'network' | 'faction' | 'age';
+        favor: number;
+        bribed: boolean;
+      }>;
+      startedDay: number;
+      endsDay: number;
+      playerCommunicated: string[];
+      internalConflict: boolean;
+      conflictResolved: boolean;
+    } | null;
+    publicity: {
+      startedDay: number;
+      endsDay: number;
+      reports: Array<{ from: string; reason: string; day: number }>;
+      playerChoice: 'lawyer' | 'media' | 'connections' | null;
+    } | null;
+    vote: {
+      votes: Array<{ reviewerId: string; approve: boolean }>;
+      passed: boolean;
+    } | null;
+    status: 'idle' | 'nominated' | 'reviewing' | 'publicity' | 'voting' | 'passed' | 'rejected';
+  } | null;
+  /** 破格提拔成功标签（有效期2个职级） */
+  breakPromotionTag: {
+    meritBonus: number;
+    popularDecay: number;
+    bossFavorBonus: number;
+    riskMultiplier: number;
+    remainingRanks: number;
+  } | null;
+  /** 揠苗助长失败标签 */
+  breakFailureTag: {
+    meritLossPercent: number;
+    penaltyDays: number;
+  } | null;
+
+  // ── 失败后软着陆系统 v1.0 ──
+  /** 软着陆状态 */
+  softLandingState: {
+    failureType: 'insufficient' | 'competitive' | 'political' | 'timing';
+    failureDay: number;
+    settlingEndDay: number;
+    settlingBonusActive: boolean;
+    reviewDone: boolean;
+    reviewRewardClaimed: boolean;
+    weaknessKey: string;
+    implicitCapital: number;
+    selfChoice: 'strive' | 'laylow' | null;
+    choiceEffectiveDay: number;
+  } | null;
+
+  // ── 晋升后权力感知系统 v1.0 ──
+  /** 权力感知状态（职级解锁能力、专属事件、称谓变化） */
+  powerPerceptionState: {
+    currentTier: 1 | 2 | 3 | 4 | 5;
+    officeLevel: 'basic' | 'standard' | 'spacious' | 'luxury' | 'command';
+    unlockedFeatures: import('@/lib/promotionPowerPerception').UnlockedFeature[];
+    tierEventsTriggered: Record<number, string[]>;
+    titleStyle: 'casual' | 'formal' | 'news';
+    lastTitleChangeDay: number;
+  } | null;
 }
 
 // 贪腐玩法：调查阶段

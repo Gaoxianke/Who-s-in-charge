@@ -12,7 +12,7 @@ import { useGame } from '@/ctx/GameContext';
 import type { UpperInspectEvent } from '@/ctx/GameContext';
 import { getBossTasks, getPoliceCases, deleteSave, resolveSubVisit, getAllReports, markReportsRead, updateSave, playerRenameSave, getAccountAndActivationCode, createSave } from '@/db/gameApi';
 import { debounceCheckName } from '@/lib/sensitiveFilter';
-import { gameDaysToDate, RANK_CONFIG, getRankGrade, getLegalTitle, getAvatarEmoji, getAvatarBgColor, getDeptNameByRank, CONCURRENT_POST_CONFIG, getAvailableConcurrentPosts, MINISTRY_POOL, formatMoney, estimateNationalGdp, getRetirementConfig, checkRetirementStatus, MAX_RANK_LEVEL } from '@/types/game';
+import { gameDaysToDate, RANK_CONFIG, getRankGrade, getLegalTitle, getAvatarEmoji, getAvatarBgColor, getDeptNameByRank, CONCURRENT_POST_CONFIG, getAvailableConcurrentPosts, MINISTRY_POOL, formatMoney, formatFund, estimateNationalGdp, getRetirementConfig, checkRetirementStatus, MAX_RANK_LEVEL } from '@/types/game';
 import type { DeptKey } from '@/types/game';
 import { StatBar } from '@/components/StatBar';
 import { NavCard } from '@/components/NavCard';

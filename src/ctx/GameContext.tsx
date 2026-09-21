@@ -18,6 +18,13 @@ import { RANK_CONFIG, RANK_SALARY, RANK_FUND_MULTIPLIER, RANK_PERSONAL_HPF, RANK
 import { getRandomMinistry } from '@/types/game';
 import { computeKpi } from '@/lib/kpiEngine';
 import { settlePoliticalEcology, computeTenureAccel } from '@/lib/promotionEngine';
+import { applyReputationDecay, applyReputationGain, checkReputationOverflow, computeReputationGain, getOverflowEventDescription } from '@/lib/reputationSystem';
+import { checkBossInitiative } from '@/lib/bossRelationSystem';
+import {
+  generateRivals, checkRivalActions, settleRivalInvestigation,
+  generateRevengeRival,
+} from '@/lib/rivalSystem';
+import { getPromotionWindow, isInPromotionWindow, accumulateWaiting } from '@/lib/promotionTimingSystem';
 
 export interface BossChangeEvent {
   bossNum: 1 | 2 | 3;
@@ -652,10 +659,92 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // 政治生态月度结算：功高盖主 / 非正式关系密切 / 领导阻挠 / 越级赏识
       const eco = settlePoliticalEcology(updated, newGameDays);
 
+      // 声望月度结算：表现获取 → 自然衰减 → 溢出检测（双刃剑：过高触发负面事件提示）
+      const repBefore = updated.reputation;
+      let repAfter = repBefore ? applyReputationDecay(repBefore) : null;
+      let repOverflow: ReturnType<typeof checkReputationOverflow> = null;
+      if (repBefore && repAfter) {
+        const repGain = computeReputationGain({
+          meritPoints: autoResult.meritPoints + meetingResult.meritBonus,
+          popularDelta: eco.popularDelta,
+          bossFavorDelta: autoResult.bossFavor + eco.bossFavorDelta,
+          riskValue: updated.riskValue ?? 0,
+          factionAvg:
+            ((updated.reformFaction ?? 50) + (updated.pragmaticFaction ?? 50) + (updated.cylRelation ?? 30) + (updated.technoRelation ?? 30) + (updated.localRelation ?? 30)) / 5,
+        });
+        repAfter = applyReputationGain(repAfter, repGain);
+        repOverflow = checkReputationOverflow(repAfter);
+      }
+
+      // 上司主动行为结算：提点 / 打压 / 派系站位 / 退休传承（每月最多一次）
+      // 同时将旧系统（bossFavor/boss2Favor/boss3Favor）的月度变化同步至新档案 favor，
+      // 保证《上司推荐制》门槛无法绕过（旧事件增减好感时新档案同步生效）
+      const bossEvents: string[] = [];
+      const bossProfiles = (updated.bossProfiles ?? []).map((b, idx) => {
+        const legacyDelta = idx === 0 ? (autoResult.bossFavor + eco.bossFavorDelta) : idx === 1 ? eco.boss2FavorDelta : eco.boss3FavorDelta;
+        return {
+          ...b,
+          favor: Math.max(0, Math.min(100, (b.favor ?? 50) + legacyDelta)),
+        };
+      });
+      for (const boss of bossProfiles) {
+        const evt = checkBossInitiative(boss, repBefore ?? { merit: 50, network: 45, integrity: 50, publicity: 40, faction: 45 }, newGameDays);
+        if (evt) {
+          bossEvents.push(evt);
+          boss.lastActiveDay = newGameDays;
+        }
+      }
+
+      // ── 政敌系统月度结算 v1.0 ──
+      const rivalEvents: string[] = [];
+      let rivals = updated.rivals ?? [];
+      let rivalMeritDelta = 0;
+      let rivalBossFavorDelta = 0;
+      let rivalBoss2FavorDelta = 0;
+      let rivalBoss3FavorDelta = 0;
+      // 首次月度结算时按职级段生成政敌（2-3 名）
+      if (rivals.length === 0 && newGameDays > 30) {
+        rivals = generateRivals(updated, newGameDays);
+        rivalEvents.push(`⚔️ 政敌浮现：${rivals.map(r => `${r.name}（${r.isSameFactionRival ? '同派竞争者' : '跨派打压者'}）`).join('、')} 进入你的晋升视野`);
+      }
+      // 调查到期结算（每名政敌的 investigation 若到期则出结果）
+      for (const rv of rivals) {
+        if (rv.status !== 'active' || !rv.investigation || rv.investigation.success !== null) continue;
+        const settled = settleRivalInvestigation(rv as Parameters<typeof settleRivalInvestigation>[0], newGameDays - 1);
+        if (settled.found) rivalEvents.push(settled.msg);
+      }
+      // 政敌行为 AI：晋升窗口月触发概率提升（狙击战）
+      const inWindow = isInPromotionWindow(newGameDays);
+      const inPromotionMonth = inWindow;
+      const repNow = repAfter ?? repBefore ?? { merit: 50, network: 45, integrity: 50, publicity: 40, faction: 45 };
+      const rivalActs = checkRivalActions(updated, rivals, repNow, newGameDays, inPromotionMonth);
+      for (const act of rivalActs) {
+        rivalEvents.push(act.text);
+        if (act.effects?.meritDelta) rivalMeritDelta += act.effects.meritDelta;
+        if (act.effects?.bossFavor) rivalBossFavorDelta += act.effects.bossFavor;
+        if (act.effects?.boss2Favor) rivalBoss2FavorDelta += act.effects.boss2Favor;
+        if (act.effects?.boss3Favor) rivalBoss3FavorDelta += act.effects.boss3Favor;
+        if (act.effects?.publicity && repAfter) {
+          repAfter = { ...repAfter, publicity: Math.max(0, Math.min(100, repAfter.publicity + (act.effects.publicity ?? 0))) };
+        }
+      }
+      // 击败/出局的政敌 → 生成复仇链新政敌（下一职级段）
+      const defeated = rivals.filter(r => (r.status === 'defeated' || r.status === 'fell') && !r.revengeOfId);
+      if (defeated.length > 0 && rivals.length > 0) {
+        const parent = defeated[0];
+        const revenge = generateRevengeRival(updated, parent.name, newGameDays);
+        rivals = [...rivals, revenge];
+        parent.revengeOfId = revenge.id;
+        rivalEvents.push(`👻 复仇者登场：${parent.name}的门生 ${revenge.name} 发誓为其讨回公道`);
+      }
+
       const feedbackParts: string[] = [];
       if (meetingResult.meritBonus > 0) feedbackParts.push(`📋 本月任务结算：+${meetingResult.meritBonus} 政绩`);
       if (meetingResult.failedSubIds.length > 0) feedbackParts.push(`⚠️ ${meetingResult.failedSubIds.length} 名干部未完成任务`);
       feedbackParts.push(...eco.events);
+      if (repOverflow) feedbackParts.push(`⚠️ ${getOverflowEventDescription(repOverflow.dimension)}`);
+      feedbackParts.push(...bossEvents);
+      feedbackParts.push(...rivalEvents);
       if (feedbackParts.length > 0) setMeetingTaskFeedback(feedbackParts.join('　'));
 
       // 信访办：30%概率月度触发信访事件（并行，不阻塞主流程）
@@ -729,10 +818,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         cityEcology:    Math.min(100, Math.max(0, base.cityEcology    + autoResult.cityEcology)),
         cityBusiness:   Math.min(100, Math.max(0, base.cityBusiness   + autoResult.cityBusiness)),
         securityIndex:  Math.min(100, Math.max(0, base.securityIndex  + autoResult.securityIndex)),
-        meritPoints:    Math.max(0, Math.round((base.meritPoints + autoResult.meritPoints + (inspectEvent?.meritDelta ?? 0) + meetingMeritBonus + eco.meritDelta) * 10) / 10),
-        bossFavor:      Math.min(100, Math.max(0, base.bossFavor + autoResult.bossFavor + (inspectEvent?.favorDelta ?? 0) + eco.bossFavorDelta)),
-        boss2Favor:     Math.min(100, Math.max(0, base.boss2Favor + eco.boss2FavorDelta)),
-        boss3Favor:     Math.min(100, Math.max(0, base.boss3Favor + eco.boss3FavorDelta)),
+        meritPoints:    Math.max(0, Math.round((base.meritPoints + autoResult.meritPoints + (inspectEvent?.meritDelta ?? 0) + meetingMeritBonus + eco.meritDelta + rivalMeritDelta) * 10) / 10),
+        bossFavor:      Math.min(100, Math.max(0, base.bossFavor + autoResult.bossFavor + (inspectEvent?.favorDelta ?? 0) + eco.bossFavorDelta + rivalBossFavorDelta)),
+        boss2Favor:     Math.min(100, Math.max(0, base.boss2Favor + eco.boss2FavorDelta + rivalBoss2FavorDelta)),
+        boss3Favor:     Math.min(100, Math.max(0, base.boss3Favor + eco.boss3FavorDelta + rivalBoss3FavorDelta)),
         popularSupport: Math.min(100, Math.max(0, base.popularSupport + eco.popularDelta)),
         prestige_flag:  eco.prestige_flag,
         clique_flag:    eco.clique_flag,
@@ -745,6 +834,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         patron_fail_months: eco.patron_fail_months,
         ...(eco.investState ? { investState: eco.investState, caseStartDay: eco.caseStartDay } : {}),
         ...(ministryRotate ? { cityName: ministryRotate.cityName, lastMinistryRotateDay: ministryRotate.lastMinistryRotateDay } : {}),
+        ...(repAfter ? { reputation: repAfter } : {}),
+        ...(bossEvents.length > 0 ? { bossProfiles } : {}),
+        ...(rivalEvents.length > 0 || rivals.length > 0 ? { rivals } : {}),
+        // 晋升时机系统：火线提拔 debuff 每日递减
+        ...(base.firePromotionDebuffDays && base.firePromotionDebuffDays > 0 ? { firePromotionDebuffDays: base.firePromotionDebuffDays - 1 } : {}),
+        // 等待耐心积累（窗口外每日计算 bonus）
+        ...(base.waitingState ? { waitingState: accumulateWaiting(base.waitingState, newGameDays) } : {}),
+        // 造势仅限当前窗口期有效，月度结算自动重置
+        ...(base.momentumActive ? { momentumActive: false } : {}),
       };
       const withMonthly = await updateSave(updated.id, monthlyUpdates);
       if (withMonthly) setSave(withMonthly);
