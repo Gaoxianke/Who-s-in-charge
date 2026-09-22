@@ -159,17 +159,31 @@ export default function CharacterCreateScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const { data: adminData } = await supabase.rpc('is_current_admin');
-        if (Boolean(adminData)) {
+        // 管理员检查：失败时降级为普通用户，绝不能阻塞 gateChecked
+        let isAdminUser = false;
+        try {
+          const { data: adminData } = await supabase.rpc('is_current_admin');
+          isAdminUser = Boolean(adminData);
+        } catch (e) {
+          console.error('[character-create] 管理员检查失败:', e);
+          isAdminUser = false;
+        }
+        if (isAdminUser) {
           if (active) setGateChecked(true);
           return;
         }
-        // 统一走集中式门禁：仅在目标为 character-create 时放行，其余一律跳转，彻底避免误跳测试码页
-        const target = await resolveGateTarget(true);
-        if (target === 'character-create') {
+        // 门禁检查：失败时静默放行，避免阻塞页面渲染
+        try {
+          const target = await resolveGateTarget(true);
+          if (target === 'character-create') {
+            if (active) setGateChecked(true);
+          } else {
+            router.replace(gateTargetHref(target) as RelativePathString);
+          }
+        } catch (e) {
+          console.error('[character-create] 门禁检查失败:', e);
+          // 门禁失败时静默放行，避免网络异常导致白屏
           if (active) setGateChecked(true);
-        } else {
-          router.replace(gateTargetHref(target) as RelativePathString);
         }
       })();
       return () => {
