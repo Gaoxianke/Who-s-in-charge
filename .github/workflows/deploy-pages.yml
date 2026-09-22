@@ -1,22 +1,18 @@
 name: Deploy web to GitHub Pages
 
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-
 concurrency:
   group: pages
   cancel-in-progress: true
-
 
 jobs:
   build-and-deploy:
@@ -27,27 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
-
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-
 
       - name: Set baseUrl for GitHub Pages
         run: |
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('app.json','utf8'));p.expo.experiments=(p.expo.experiments||{});p.expo.experiments.baseUrl='/Who-s-in-charge';fs.writeFileSync('app.json',JSON.stringify(p,null,2))"
-
 
       - name: Export web build
         env:
@@ -56,16 +47,17 @@ jobs:
           EXPO_PUBLIC_APP_ID: ${{ vars.EXPO_PUBLIC_APP_ID }}
         run: npx expo export --platform web
 
+      # SPA 路由回退：将 index.html 复制为 404.html，使 GitHub Pages 将未知路径回退到主入口
+      - name: Add SPA fallback for GitHub Pages
+        run: cp dist/index.html dist/404.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-
 
       - name: Deploy to GitHub Pages
         id: deployment
