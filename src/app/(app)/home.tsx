@@ -66,14 +66,25 @@ export default function HomeScreen() {
       (async () => {
         await refreshSave();
         getAccountAndActivationCode().then(setAccountInfo);
-        const { data: adminData } = await supabase.rpc('is_current_admin');
-        const isAdminUser = Boolean(adminData);
+        // 管理员检查：失败时降级为普通用户，绝不能阻塞 adminChecked
+        let isAdminUser = false;
+        try {
+          const { data: adminData } = await supabase.rpc('is_current_admin');
+          isAdminUser = Boolean(adminData);
+        } catch (e) {
+          console.error('[home] 管理员检查失败:', e);
+          isAdminUser = false;
+        }
         setIsAdmin(isAdminUser);
         setAdminChecked(true);
         if (isAdminUser) return;
-        // 统一走集中式门禁：仅在目标不是 home 时才跳转，彻底避免误跳测试码页
-        const target = await resolveGateTarget(Boolean(save?.needsCharacterCreation));
-        if (target !== 'home') router.replace(gateTargetHref(target) as RelativePathString);
+        // 门禁检查：失败时静默跳过，避免阻塞页面渲染
+        try {
+          const target = await resolveGateTarget(Boolean(save?.needsCharacterCreation));
+          if (target !== 'home') router.replace(gateTargetHref(target) as RelativePathString);
+        } catch (e) {
+          console.error('[home] 门禁检查失败:', e);
+        }
       })();
     }, [refreshSave, router, save?.needsCharacterCreation])
   );
